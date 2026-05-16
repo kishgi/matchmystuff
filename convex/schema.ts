@@ -41,4 +41,34 @@ export default defineSchema({
     seen: v.boolean(),
     createdAt: v.number(),
   }).index("by_user", ["userId"]),
+  conversations: defineTable({
+    matchId: v.id("matches"),
+    postA: v.id("posts"),
+    postB: v.id("posts"),
+    participantA: v.string(),
+    participantB: v.string(),
+    createdAt: v.number(),
+    lastMessageAt: v.number(),
+  })
+    .index("by_match", ["matchId"])
+    .index("by_participant", ["participantA"])
+    .index("by_participantB", ["participantB"]),
+  messages: defineTable({
+    conversationId: v.id("conversations"),
+    senderId: v.string(),
+    senderName: v.string(),
+    type: v.union(v.literal("text"), v.literal("image"), v.literal("location")),
+    content: v.string(),
+    imageStorageId: v.optional(v.string()),
+    imageUrl: v.optional(v.string()),
+    location: v.optional(
+      v.object({
+        lat: v.number(),
+        lng: v.number(),
+        label: v.string(),
+      }),
+    ),
+    createdAt: v.number(),
+    seen: v.boolean(),
+  }).index("by_conversation", ["conversationId", "createdAt"]),
 });

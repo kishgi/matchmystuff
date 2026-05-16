@@ -38,26 +38,48 @@ export default function ReportPage({
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [errors, setErrors] = useState<{
+    title?: string;
+    description?: string;
+    image?: string;
+  }>({});
 
   const uploadFile = useCallback(
     async (file: File) => {
       setUploading(true);
+      setUploadProgress(0);
+      setErrors((e) => ({ ...e, image: undefined }));
       try {
         const uploadUrl = await generateUploadUrl();
-        const result = await fetch(uploadUrl, {
-          method: "POST",
-          headers: { "Content-Type": file.type },
-          body: file,
+        const storageIdResult = await new Promise<string>((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.upload.addEventListener("progress", (ev) => {
+            if (ev.lengthComputable) {
+              setUploadProgress(Math.round((ev.loaded / ev.total) * 100));
+            }
+          });
+          xhr.addEventListener("load", () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              const json = JSON.parse(xhr.responseText) as { storageId: string };
+              resolve(json.storageId);
+            } else {
+              reject(new Error(COPY.toast.uploadError));
+            }
+          });
+          xhr.addEventListener("error", () => reject(new Error(COPY.toast.uploadError)));
+          xhr.open("POST", uploadUrl);
+          xhr.setRequestHeader("Content-Type", file.type);
+          xhr.send(file);
         });
-        if (!result.ok) throw new Error(COPY.toast.uploadError);
-        const json = (await result.json()) as { storageId: string };
-        setStorageId(json.storageId);
+        setStorageId(storageIdResult);
         setPreview(URL.createObjectURL(file));
         toastSuccess(COPY.toast.uploadSuccess);
       } catch {
         toastError(COPY.toast.uploadError);
       } finally {
         setUploading(false);
+        setUploadProgress(0);
       }
     },
     [generateUploadUrl],
@@ -72,7 +94,12 @@ export default function ReportPage({
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!storageId || !user) return;
+    const nextErrors: typeof errors = {};
+    if (title.trim().length < 3) nextErrors.title = COPY.report.titleMin;
+    if (description.trim().length < 10) nextErrors.description = COPY.report.descriptionMin;
+    if (!storageId) nextErrors.image = COPY.report.imageRequired;
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0 || !user || !storageId) return;
     setSubmitting(true);
     try {
       await createPost({
@@ -125,6 +152,9 @@ export default function ReportPage({
                 onChange={(e) => setTitle(e.target.value)}
                 required
               />
+              {errors.title && (
+                <p className="mt-1 text-sm" style={{ color: C.coral }}>{errors.title}</p>
+              )}
             </div>
             <div>
               <label className="mb-2 block text-base font-medium" style={{ color: C.slate }}>
@@ -137,6 +167,9 @@ export default function ReportPage({
                 rows={4}
                 className="resize-none"
               />
+              {errors.description && (
+                <p className="mt-1 text-sm" style={{ color: C.coral }}>{errors.description}</p>
+              )}
             </div>
             <div>
               <label className="mb-2 block text-base font-medium" style={{ color: C.slate }}>
@@ -171,10 +204,17 @@ export default function ReportPage({
                 }}
               />
               {uploading ? (
-                <div
-                  className="h-10 w-10 animate-spin rounded-full border-2 border-t-transparent"
-                  style={{ borderColor: accent }}
-                />
+                <div className="w-full max-w-xs space-y-2">
+                  <div className="h-2 overflow-hidden rounded-full bg-gray-100">
+                    <div
+                      className="h-full transition-all duration-200"
+                      style={{ width: `${uploadProgress}%`, backgroundColor: accent }}
+                    />
+                  </div>
+                  <p className="text-center text-sm" style={{ color: C.slate }}>
+                    {uploadProgress}%
+                  </p>
+                </div>
               ) : preview ? (
                 <div className="relative h-48 w-full overflow-hidden rounded-xl">
                   <Image src={preview} alt="" fill className="object-contain" unoptimized />
@@ -185,6 +225,9 @@ export default function ReportPage({
                 </p>
               )}
             </div>
+            {errors.image && (
+              <p className="text-sm" style={{ color: C.coral }}>{errors.image}</p>
+            )}
             <button
               type="submit"
               disabled={submitting || !storageId || !user}

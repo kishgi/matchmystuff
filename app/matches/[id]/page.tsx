@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { OpenChatButton } from "@/components/OpenChatButton";
 import { Skeleton } from "@/components/Skeleton";
 import { C } from "@/lib/colors";
 import { COPY } from "@/lib/copy";
@@ -122,6 +123,9 @@ export default function MatchDetailPage({
           </span>
         </div>
         <MatchSide post={match.postB} />
+      </div>
+      <div className="mt-10 flex justify-center">
+        <OpenChatButton matchId={match._id} />
       </div>
     </div>
   );

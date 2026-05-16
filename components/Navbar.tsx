@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useConvexAuth } from "@convex-dev/auth/react";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import { C } from "@/lib/colors";
 import { COPY } from "@/lib/copy";
 import { Logo } from "@/components/Logo";
@@ -10,15 +13,25 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { UserMenu } from "@/components/UserMenu";
 
 const navLinks = [
-  { href: "/", label: COPY.nav.home, color: C.slate },
-  { href: "/report/lost", label: COPY.nav.reportLost, color: C.coral },
-  { href: "/report/found", label: COPY.nav.reportFound, color: C.sky },
+  { href: "/", label: COPY.nav.home, color: C.slate, match: (p: string) => p === "/" },
+  { href: "/report/lost", label: COPY.nav.reportLost, color: C.coral, match: (p: string) => p.startsWith("/report/lost") },
+  { href: "/report/found", label: COPY.nav.reportFound, color: C.sky, match: (p: string) => p.startsWith("/report/found") },
+  { href: "/conversations", label: COPY.nav.messages, color: C.teal, match: (p: string) => p.startsWith("/conversations") || p.startsWith("/chat") },
 ] as const;
 
 export function Navbar() {
+  const pathname = usePathname();
   const { isAuthenticated, isLoading } = useConvexAuth();
+  const unreadMessages = useQuery(
+    api.conversations.getUnreadMessageCount,
+    isAuthenticated ? {} : "skip",
+  );
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -26,6 +39,8 @@ export function Navbar() {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  const msgCount = unreadMessages ?? 0;
 
   return (
     <header
@@ -37,17 +52,28 @@ export function Navbar() {
         </Link>
 
         <ul className="hidden items-center gap-10 md:flex">
-          {navLinks.map((link) => (
-            <li key={link.href}>
-              <Link
-                href={link.href}
-                className="text-base font-medium transition-all hover:underline hover:underline-offset-4"
-                style={{ color: link.color }}
-              >
-                {link.label}
-              </Link>
-            </li>
-          ))}
+          {navLinks.map((link) => {
+            const active = link.match(pathname);
+            return (
+              <li key={link.href}>
+                <Link
+                  href={link.href}
+                  className={`relative text-base transition-all ${active ? "font-bold underline underline-offset-4" : "font-medium hover:underline hover:underline-offset-4"}`}
+                  style={{ color: link.color }}
+                >
+                  {link.label}
+                  {link.href === "/conversations" && isAuthenticated && msgCount > 0 && (
+                    <span
+                      className="absolute -right-4 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white"
+                      style={{ backgroundColor: C.coral }}
+                    >
+                      {msgCount > 9 ? "9+" : msgCount}
+                    </span>
+                  )}
+                </Link>
+              </li>
+            );
+          })}
         </ul>
 
         <div className="flex items-center gap-3">
@@ -82,23 +108,32 @@ export function Navbar() {
       {menuOpen && (
         <div className="border-t border-gray-100 px-4 py-5 md:hidden">
           <ul className="flex flex-col gap-4">
-            {navLinks.map((link) => (
-              <li key={link.href}>
-                <Link
-                  href={link.href}
-                  onClick={() => setMenuOpen(false)}
-                  className="block text-base font-medium transition-colors hover:underline"
-                  style={{ color: link.color }}
-                >
-                  {link.label}
-                </Link>
-              </li>
-            ))}
+            {navLinks.map((link) => {
+              const active = link.match(pathname);
+              return (
+                <li key={link.href}>
+                  <Link
+                    href={link.href}
+                    className={`flex items-center gap-2 text-base ${active ? "font-bold underline underline-offset-4" : "font-medium"}`}
+                    style={{ color: link.color }}
+                  >
+                    {link.label}
+                    {link.href === "/conversations" && msgCount > 0 && (
+                      <span
+                        className="flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-xs font-bold text-white"
+                        style={{ backgroundColor: C.coral }}
+                      >
+                        {msgCount > 9 ? "9+" : msgCount}
+                      </span>
+                    )}
+                  </Link>
+                </li>
+              );
+            })}
             {!isLoading && !isAuthenticated && (
               <li>
                 <Link
                   href="/auth"
-                  onClick={() => setMenuOpen(false)}
                   className="btn-primary inline-flex !px-6 !py-2.5"
                   style={{ backgroundColor: C.teal }}
                 >

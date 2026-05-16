@@ -10,9 +10,11 @@
 
 import type * as actions from "../actions.js";
 import type * as auth from "../auth.js";
+import type * as conversations from "../conversations.js";
 import type * as http from "../http.js";
 import type * as lib_similarity from "../lib/similarity.js";
 import type * as matches from "../matches.js";
+import type * as messages from "../messages.js";
 import type * as notifications from "../notifications.js";
 import type * as posts from "../posts.js";
 import type * as storage from "../storage.js";
@@ -27,9 +29,11 @@ import type {
 declare const fullApi: ApiFromModules<{
   actions: typeof actions;
   auth: typeof auth;
+  conversations: typeof conversations;
   http: typeof http;
   "lib/similarity": typeof lib_similarity;
   matches: typeof matches;
+  messages: typeof messages;
   notifications: typeof notifications;
   posts: typeof posts;
   storage: typeof storage;

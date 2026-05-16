@@ -54,7 +54,7 @@ export function NotificationBell() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="absolute right-0 z-50 mt-2 w-80 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-xl"
+            className="absolute right-0 z-[60] mt-2 w-80 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-xl"
           >
             <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
               <span className="text-sm font-semibold" style={{ color: C.teal }}>

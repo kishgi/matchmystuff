@@ -3,35 +3,79 @@ import { C } from "@/lib/colors";
 import { COPY } from "@/lib/copy";
 import { Logo } from "@/components/Logo";
 
-const footerLinks = [
-  { href: "/privacy", label: COPY.footer.privacy },
-  { href: "/terms", label: COPY.footer.terms },
-  { href: "/contact", label: COPY.footer.contact },
+const productLinks = [
+  { href: "/", label: COPY.footer.home },
+  { href: "/report/lost", label: COPY.footer.reportLost },
+  { href: "/report/found", label: COPY.footer.reportFound },
+  { href: "/matches", label: COPY.footer.matches },
+  { href: "/conversations", label: COPY.footer.messages },
 ] as const;
 
-export function Footer() {
+const companyLinks = [
+  { href: "/contact", label: COPY.footer.contact },
+  { href: "/auth", label: COPY.footer.signIn },
+] as const;
+
+const legalLinks = [
+  { href: "/privacy", label: COPY.footer.privacy },
+  { href: "/terms", label: COPY.footer.terms },
+] as const;
+
+function FooterColumn({
+  title,
+  links,
+}: {
+  title: string;
+  links: readonly { href: string; label: string }[];
+}) {
   return (
-    <footer className="border-t border-gray-100 px-4 py-12 md:px-6 md:py-14">
-      <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-8 md:flex-row">
-        <div className="flex flex-col items-center gap-3 md:items-start">
-          <Logo height={44} />
-          <p className="text-base" style={{ color: C.slate }}>
-            {COPY.brand.tagline}
-          </p>
+    <div>
+      <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide" style={{ color: C.teal }}>
+        {title}
+      </h3>
+      <ul className="space-y-2.5">
+        {links.map((link) => (
+          <li key={link.href}>
+            <Link
+              href={link.href}
+              className="text-sm transition-colors hover:underline hover:underline-offset-4"
+              style={{ color: C.slate }}
+            >
+              {link.label}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+export function Footer() {
+  const year = new Date().getFullYear();
+
+  return (
+    <footer className="border-t border-gray-100 bg-[#f8fbfc] px-4 py-14 md:px-6 md:py-16">
+      <div className="mx-auto max-w-6xl">
+        <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-5">
+          <div className="lg:col-span-2">
+            <Logo height={44} />
+            <p className="mt-4 max-w-sm text-sm leading-relaxed" style={{ color: C.slate }}>
+              {COPY.footer.description}
+            </p>
+            <p className="mt-3 text-sm font-medium" style={{ color: C.teal }}>
+              {COPY.footer.tagline}
+            </p>
+          </div>
+          <FooterColumn title={COPY.footer.product} links={productLinks} />
+          <FooterColumn title={COPY.footer.company} links={companyLinks} />
+          <FooterColumn title={COPY.footer.legal} links={legalLinks} />
         </div>
-        <ul className="flex flex-wrap justify-center gap-8">
-          {footerLinks.map((link) => (
-            <li key={link.href}>
-              <Link
-                href={link.href}
-                className="text-base transition-colors hover:underline hover:underline-offset-4"
-                style={{ color: C.slate }}
-              >
-                {link.label}
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <div
+          className="mt-12 border-t border-gray-200 pt-8 text-center text-sm md:text-left"
+          style={{ color: C.slate, opacity: 0.75 }}
+        >
+          © {year} {COPY.footer.copyright}
+        </div>
       </div>
     </footer>
   );
