@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { useChatWidgetOptional } from "@/components/chat/ChatWidgetContext";
 import { C } from "@/lib/colors";
 import { COPY } from "@/lib/copy";
 
@@ -20,12 +21,17 @@ export function OpenChatButton({
   className = "",
 }: OpenChatButtonProps) {
   const router = useRouter();
+  const chatWidget = useChatWidgetOptional();
   const getOrCreate = useMutation(api.conversations.getOrCreateConversation);
   const [loading, setLoading] = useState(false);
 
   const openChat = async () => {
     setLoading(true);
     try {
+      if (chatWidget) {
+        await chatWidget.openMatchChat(matchId);
+        return;
+      }
       const conversationId = await getOrCreate({ matchId });
       router.push(`/chat/${conversationId}`);
     } finally {
