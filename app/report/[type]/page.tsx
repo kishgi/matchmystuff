@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "convex/react";
 import { motion, AnimatePresence } from "framer-motion";
 import { api } from "@/convex/_generated/api";
+import { FormInput, FormTextarea } from "@/components/FormInput";
 import { C } from "@/lib/colors";
 import { COPY } from "@/lib/copy";
 import { fadeIn } from "@/lib/motion";
@@ -119,34 +120,32 @@ export default function ReportPage({
               <label className="mb-2 block text-base font-medium" style={{ color: C.slate }}>
                 {COPY.report.title}
               </label>
-              <input
+              <FormInput
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 required
-                className="input-field"
               />
             </div>
             <div>
               <label className="mb-2 block text-base font-medium" style={{ color: C.slate }}>
                 {COPY.report.description}
               </label>
-              <textarea
+              <FormTextarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 required
                 rows={4}
-                className="input-field resize-none"
+                className="resize-none"
               />
             </div>
             <div>
               <label className="mb-2 block text-base font-medium" style={{ color: C.slate }}>
                 {COPY.report.location}
               </label>
-              <input
+              <FormInput
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
                 required
-                className="input-field"
               />
             </div>
             <div
@@ -156,7 +155,7 @@ export default function ReportPage({
               }}
               onDragLeave={() => setDragOver(false)}
               onDrop={onDrop}
-              className="relative flex min-h-[200px] cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed p-6 transition-colors"
+              className="relative flex min-h-[200px] cursor-pointer flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed p-6 transition-colors"
               style={{
                 borderColor: accent,
                 backgroundColor: dragOver ? `${accent}12` : "transparent",
@@ -177,8 +176,8 @@ export default function ReportPage({
                   style={{ borderColor: accent }}
                 />
               ) : preview ? (
-                <div className="relative h-48 w-full">
-                  <Image src={preview} alt="" fill className="rounded-xl object-contain" unoptimized />
+                <div className="relative h-48 w-full overflow-hidden rounded-xl">
+                  <Image src={preview} alt="" fill className="object-contain" unoptimized />
                 </div>
               ) : (
                 <p className="text-center text-base" style={{ color: C.slate }}>

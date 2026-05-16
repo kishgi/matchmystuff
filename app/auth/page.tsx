@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { FloatingAssets } from "@/components/FloatingAssets";
+import { FormInput } from "@/components/FormInput";
 import { Logo } from "@/components/Logo";
 import { C } from "@/lib/colors";
 import { COPY } from "@/lib/copy";
@@ -56,7 +57,7 @@ export default function AuthPage() {
       <div className="flex w-full flex-col justify-center px-6 py-12 sm:px-10 lg:w-1/2 lg:px-16 xl:px-24">
         <div className="mx-auto w-full max-w-md">
           <div className="mb-10">
-            <Logo height={56} />
+            <Logo height={56} priority />
           </div>
           <div className="mb-8 flex gap-8 border-b border-gray-100">
             {(["signIn", "signUp"] as const).map((t) => (
@@ -86,20 +87,20 @@ export default function AuthPage() {
                   <label className="mb-2 block text-base font-medium" style={{ color: C.slate }}>
                     {COPY.auth.name}
                   </label>
-                  <input name="name" required className="input-field" />
+                  <FormInput name="name" required />
                 </div>
               )}
               <div>
                 <label className="mb-2 block text-base font-medium" style={{ color: C.slate }}>
                   {COPY.auth.email}
                 </label>
-                <input name="email" type="email" required className="input-field" />
+                <FormInput name="email" type="email" required />
               </div>
               <div>
                 <label className="mb-2 block text-base font-medium" style={{ color: C.slate }}>
                   {COPY.auth.password}
                 </label>
-                <input name="password" type="password" required minLength={8} className="input-field" />
+                <FormInput name="password" type="password" required minLength={8} />
               </div>
               {error && (
                 <p className="text-base" style={{ color: C.coral }}>
@@ -128,10 +129,13 @@ export default function AuthPage() {
         <FloatingAssets />
         <div className="relative z-10 flex flex-col items-center justify-center px-12 text-center">
           {/* <Logo height={80} className="mb-10 drop-shadow-lg" /> */}
-          <h2 className={`max-w-md text-3xl font-bold tracking-tight text-${C.coralSoft} md:text-4xl`}>
+          <h2
+            className="max-w-md text-3xl font-bold tracking-tight md:text-4xl"
+            style={{ color: C.coralSoft }}
+          >
             {COPY.auth.brandingHeadline}
           </h2>
-          <p className="mt-5 max-w-sm text-lg leading-relaxed text-white/85">
+          <p className="mt-5 max-w-sm text-lg leading-relaxed" style={{ color: C.slate }}>
             {COPY.auth.brandingSubtext}
           </p>
         </div>

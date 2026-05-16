@@ -34,7 +34,7 @@ export function PostCard({
   const badgeLabel = type === "lost" ? COPY.postCard.lost : COPY.postCard.found;
 
   return (
-    <article className="card-surface group relative p-5 transition-all duration-200 hover:scale-[1.02]">
+    <article className="card-surface group relative overflow-hidden rounded-2xl p-5 transition-all duration-200 hover:scale-[1.02]">
       <Link href={`/post/${_id}`} className="block">
         <span
           className="absolute left-7 top-7 z-10 rounded-full px-3 py-1 text-xs font-semibold text-white"

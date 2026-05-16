@@ -53,7 +53,7 @@ export default function MatchesPage() {
                 initial={fadeInUp.initial}
                 animate={fadeInUp.animate}
                 transition={{ ...fadeInUp.transition, delay: i * 0.08 }}
-                className="card-surface border-2 p-5 md:p-8"
+                className="card-surface overflow-hidden rounded-2xl border-2 p-5 md:p-8"
                 style={{ borderColor: C.teal }}
               >
                 <div className="mb-6 flex flex-wrap items-center justify-between gap-4">

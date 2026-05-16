@@ -57,7 +57,7 @@ export default function HomePage() {
           transition={fadeInUp.transition}
         >
           <div className="mb-8 flex justify-center">
-            <Logo height={64} />
+            <Logo height={64} priority />
           </div>
           <h1 className="text-5xl font-bold tracking-tight md:text-6xl lg:text-7xl">
             <span style={{ color: C.coral }}>{COPY.hero.line1}</span>
@@ -102,7 +102,7 @@ export default function HomePage() {
           {COPY.howItWorks.steps.map((step, i) => (
             <motion.div
               key={step.title}
-              className="card-surface border-t-2 p-8"
+              className="card-surface overflow-hidden rounded-2xl border-t-2 p-8"
               style={{ borderTopColor: C.sky }}
               {...inViewFadeInUp}
               transition={{ ...inViewFadeInUp.transition, delay: i * 0.1 }}
