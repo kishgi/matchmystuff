@@ -53,6 +53,10 @@ export default defineSchema({
     .index("by_match", ["matchId"])
     .index("by_participant", ["participantA"])
     .index("by_participantB", ["participantB"]),
+  adminSessions: defineTable({
+    token: v.string(),
+    expiresAt: v.number(),
+  }).index("by_token", ["token"]),
   messages: defineTable({
     conversationId: v.id("conversations"),
     senderId: v.string(),
