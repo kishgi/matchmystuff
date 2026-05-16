@@ -16,6 +16,7 @@ type ConversationRowProps = {
   } | null;
   lastMessageAt: number;
   hasUnread: boolean;
+  onSelect?: (conversationId: Id<"conversations">) => void;
 };
 
 function previewText(
@@ -27,6 +28,11 @@ function previewText(
   return lastMessage.content;
 }
 
+const rowClass = (hasUnread: boolean) =>
+  `flex w-full items-center gap-4 px-4 py-4 text-left transition-colors hover:bg-gray-50/80 ${
+    hasUnread ? "bg-[#4AB9E2]/5" : ""
+  }`;
+
 export function ConversationRow({
   conversationId,
   otherUserName,
@@ -34,16 +40,12 @@ export function ConversationRow({
   lastMessage,
   lastMessageAt,
   hasUnread,
+  onSelect,
 }: ConversationRowProps) {
   const initial = otherUserName.charAt(0).toUpperCase();
 
-  return (
-    <Link
-      href={`/chat/${conversationId}`}
-      className={`flex items-center gap-4 px-4 py-4 transition-colors hover:bg-gray-50/80 ${
-        hasUnread ? "bg-[#4AB9E2]/5" : ""
-      }`}
-    >
+  const content = (
+    <>
       <span
         className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-lg font-semibold text-white shadow-sm"
         style={{ backgroundColor: C.teal }}
@@ -83,6 +85,20 @@ export function ConversationRow({
           {previewText(lastMessage)}
         </p>
       </div>
+    </>
+  );
+
+  if (onSelect) {
+    return (
+      <button type="button" onClick={() => onSelect(conversationId)} className={rowClass(hasUnread)}>
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <Link href={`/chat/${conversationId}`} className={rowClass(hasUnread)}>
+      {content}
     </Link>
   );
 }

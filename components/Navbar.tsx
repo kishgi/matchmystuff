@@ -4,8 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useConvexAuth } from "@convex-dev/auth/react";
-import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
 import { C } from "@/lib/colors";
 import { COPY } from "@/lib/copy";
 import { NotificationBell } from "@/components/NotificationBell";
@@ -15,16 +13,11 @@ const navLinks = [
   { href: "/", label: COPY.nav.home, color: C.slate, match: (p: string) => p === "/" },
   { href: "/report/lost", label: COPY.nav.reportLost, color: C.coral, match: (p: string) => p.startsWith("/report/lost") },
   { href: "/report/found", label: COPY.nav.reportFound, color: C.sky, match: (p: string) => p.startsWith("/report/found") },
-  { href: "/conversations", label: COPY.nav.messages, color: C.teal, match: (p: string) => p.startsWith("/conversations") || p.startsWith("/chat") },
 ] as const;
 
 export function Navbar() {
   const pathname = usePathname();
   const { isAuthenticated, isLoading } = useConvexAuth();
-  const unreadMessages = useQuery(
-    api.conversations.getUnreadMessageCount,
-    isAuthenticated ? {} : "skip",
-  );
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -38,8 +31,6 @@ export function Navbar() {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
-
-  const msgCount = unreadMessages ?? 0;
 
   return (
     <header
@@ -62,14 +53,6 @@ export function Navbar() {
                   style={{ color: link.color }}
                 >
                   {link.label}
-                  {link.href === "/conversations" && isAuthenticated && msgCount > 0 && (
-                    <span
-                      className="absolute -right-4 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white"
-                      style={{ backgroundColor: C.coral }}
-                    >
-                      {msgCount > 9 ? "9+" : msgCount}
-                    </span>
-                  )}
                 </Link>
               </li>
             );
@@ -114,18 +97,10 @@ export function Navbar() {
                 <li key={link.href}>
                   <Link
                     href={link.href}
-                    className={`flex items-center gap-2 text-base ${active ? "font-bold underline underline-offset-4" : "font-medium"}`}
+                    className={`block text-base ${active ? "font-bold underline underline-offset-4" : "font-medium"}`}
                     style={{ color: link.color }}
                   >
                     {link.label}
-                    {link.href === "/conversations" && msgCount > 0 && (
-                      <span
-                        className="flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-xs font-bold text-white"
-                        style={{ backgroundColor: C.coral }}
-                      >
-                        {msgCount > 9 ? "9+" : msgCount}
-                      </span>
-                    )}
                   </Link>
                 </li>
               );

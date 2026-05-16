@@ -173,6 +173,7 @@ export const COPY = {
     sent: "Sent",
     delivered: "Delivered",
     noMessagesYet: "No messages yet",
+    close: "Close chat",
   },
   auth: {
     backHome: "Back to home",

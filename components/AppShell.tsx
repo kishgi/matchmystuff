@@ -2,6 +2,8 @@
 
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import { ChatWidget } from "@/components/chat/ChatWidget";
+import { ChatWidgetProvider } from "@/components/chat/ChatWidgetContext";
 import { Footer } from "@/components/Footer";
 import { Navbar } from "@/components/Navbar";
 
@@ -12,7 +14,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const isChat = pathname.startsWith("/chat/");
 
   return (
-    <>
+    <ChatWidgetProvider>
       {!isAuth && !isAdmin && <Navbar />}
       <main
         className={
@@ -28,6 +30,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         {children}
       </main>
       {!isAuth && !isChat && !isAdmin && <Footer />}
-    </>
+      <ChatWidget />
+    </ChatWidgetProvider>
   );
 }

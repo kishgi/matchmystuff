@@ -8,7 +8,6 @@ const productLinks = [
   { href: "/report/lost", label: COPY.footer.reportLost },
   { href: "/report/found", label: COPY.footer.reportFound },
   { href: "/matches", label: COPY.footer.matches },
-  { href: "/conversations", label: COPY.footer.messages },
 ] as const;
 
 const companyLinks = [
