@@ -11,18 +11,22 @@ const footerLinks = [
 
 export function Footer() {
   return (
-    <footer className="border-t border-gray-100 px-4 py-10">
-      <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 md:flex-row">
-        <div className="flex flex-col items-center gap-2 md:items-start">
-          <Logo height={28} />
-          <p className="text-sm" style={{ color: C.slate }}>
+    <footer className="border-t border-gray-100 px-4 py-12 md:px-6 md:py-14">
+      <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-8 md:flex-row">
+        <div className="flex flex-col items-center gap-3 md:items-start">
+          <Logo height={44} />
+          <p className="text-base" style={{ color: C.slate }}>
             {COPY.brand.tagline}
           </p>
         </div>
-        <ul className="flex gap-6">
+        <ul className="flex flex-wrap justify-center gap-8">
           {footerLinks.map((link) => (
             <li key={link.href}>
-              <Link href={link.href} className="text-sm hover:underline" style={{ color: C.slate }}>
+              <Link
+                href={link.href}
+                className="text-base transition-colors hover:underline hover:underline-offset-4"
+                style={{ color: C.slate }}
+              >
                 {link.label}
               </Link>
             </li>

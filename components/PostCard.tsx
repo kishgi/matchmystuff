@@ -34,44 +34,44 @@ export function PostCard({
   const badgeLabel = type === "lost" ? COPY.postCard.lost : COPY.postCard.found;
 
   return (
-    <article className="group relative rounded-2xl border border-gray-100 bg-white p-4 transition-all duration-200 hover:scale-[1.02] hover:shadow-md">
+    <article className="card-surface group relative p-5 transition-all duration-200 hover:scale-[1.02]">
       <Link href={`/post/${_id}`} className="block">
         <span
-          className="absolute left-6 top-6 z-10 rounded-full px-2 py-1 text-xs text-white"
+          className="absolute left-7 top-7 z-10 rounded-full px-3 py-1 text-xs font-semibold text-white"
           style={{ backgroundColor: accent }}
         >
           {badgeLabel}
         </span>
         {matched && (
-          <span className="absolute right-6 top-6 z-10 rounded-full bg-green-500 px-2 py-1 text-xs text-white">
+          <span className="absolute right-7 top-7 z-10 rounded-full bg-green-500 px-3 py-1 text-xs font-semibold text-white">
             {COPY.postCard.matched}
           </span>
         )}
-        <div className="relative mb-3 aspect-square overflow-hidden rounded-xl bg-gray-50">
+        <div className="relative mb-4 aspect-square overflow-hidden rounded-xl bg-gray-50">
           {imageUrl ? (
             <Image
               src={imageUrl}
               alt=""
               fill
-              className="object-cover"
+              className="object-cover transition-transform duration-300 group-hover:scale-105"
               sizes="(max-width: 768px) 100vw, 33vw"
             />
           ) : null}
         </div>
-        <h3 className="font-semibold" style={{ color: C.teal }}>
+        <h3 className="text-lg font-semibold" style={{ color: C.teal }}>
           {title}
         </h3>
-        <p className="text-sm" style={{ color: C.slate }}>
+        <p className="mt-1 text-base" style={{ color: C.slate }}>
           {location} · {timeAgo(createdAt)}
         </p>
-        <p className="mt-1 text-xs" style={{ color: C.slate }}>
+        <p className="mt-1.5 text-sm" style={{ color: C.slate }}>
           {userName}
         </p>
       </Link>
       {matched && (
         <Link
           href={matchHref}
-          className="mt-3 inline-block rounded-full border px-4 py-1.5 text-sm font-medium transition-colors hover:bg-gray-50"
+          className="btn-ghost mt-4"
           style={{ borderColor: accent, color: accent }}
         >
           {COPY.postCard.viewMatch}
