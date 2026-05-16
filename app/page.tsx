@@ -1,7 +1,9 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useConvexAuth } from "@convex-dev/auth/react";
 import { useAction, useQuery } from "convex/react";
 import { motion, AnimatePresence } from "framer-motion";
 import { api } from "@/convex/_generated/api";
@@ -14,6 +16,17 @@ import { Skeleton } from "@/components/Skeleton";
 import { C } from "@/lib/colors";
 import { COPY } from "@/lib/copy";
 import { fadeInUp, inViewFadeInUp } from "@/lib/motion";
+import type { MapPost } from "@/components/MapView";
+
+const MapView = dynamic(
+  () => import("@/components/MapView").then((m) => ({ default: m.MapView })),
+  {
+    ssr: false,
+    loading: () => (
+      <Skeleton className="h-[220px] w-full rounded-2xl md:h-[320px]" />
+    ),
+  },
+);
 
 const stepIcons = [
   <svg key="camera" className="h-10 w-10" style={{ color: C.teal }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -42,12 +55,56 @@ type SearchHit = {
 };
 
 export default function HomePage() {
+  const { isAuthenticated } = useConvexAuth();
   const posts = useQuery(api.posts.getPosts, {});
+  const user = useQuery(api.users.getCurrentUser, isAuthenticated ? {} : "skip");
+  const userMatches = useQuery(
+    api.matches.getMatchesForUser,
+    isAuthenticated ? {} : "skip",
+  );
   const semanticSearch = useAction(api.actions.semanticSearchPosts);
   const [tab, setTab] = useState<FeedTab>("lost");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchHit[] | null>(null);
   const [searching, setSearching] = useState(false);
+  const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(
+    null,
+  );
+
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) =>
+        setUserCoords({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+        }),
+      () => setUserCoords(null),
+      { timeout: 10000, maximumAge: 300000 },
+    );
+  }, []);
+
+  const matchedPostIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (!userMatches) return ids;
+    for (const m of userMatches) {
+      ids.add(m.postA._id);
+      ids.add(m.postB._id);
+    }
+    return ids;
+  }, [userMatches]);
+
+  const mapPosts: MapPost[] = useMemo(() => {
+    if (!posts) return [];
+    return posts.map((p) => ({
+      _id: p._id,
+      type: p.type,
+      title: p.title,
+      location: p.location,
+      imageUrl: p.imageUrl,
+      userId: p.userId,
+    }));
+  }, [posts]);
 
   useEffect(() => {
     const q = searchQuery.trim();
@@ -209,6 +266,14 @@ export default function HomePage() {
         <h2 className="mb-10" style={{ color: C.teal }}>
           {COPY.feed.title}
         </h2>
+        <div className="mb-8">
+          <MapView
+            posts={mapPosts}
+            userCoords={userCoords}
+            matchedPostIds={matchedPostIds}
+            currentUserId={(user?._id as string | undefined) ?? null}
+          />
+        </div>
         <div className="mb-6">
           <input
             type="search"

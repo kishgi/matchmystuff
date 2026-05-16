@@ -1,6 +1,10 @@
 "use node";
 
+// Convex env: OPENAI_API_KEY, GMAIL_USER (sender Gmail), GMAIL_PASS (Gmail App Password),
+// APP_BASE_URL (e.g. http://localhost:3000 — used for /matches links in emails)
+
 import OpenAI from "openai";
+import nodemailer from "nodemailer";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
@@ -344,6 +348,84 @@ export const findMatches = internalAction({
         postB: candidate._id,
         score,
       });
+    }
+  },
+});
+
+export const sendMatchEmail = internalAction({
+  args: {
+    postAId: v.id("posts"),
+    postBId: v.id("posts"),
+    score: v.number(),
+  },
+  handler: async (ctx, { postAId, postBId, score }) => {
+    const gmailUser = process.env.GMAIL_USER;
+    const gmailPass = process.env.GMAIL_PASS;
+    if (!gmailUser || !gmailPass) {
+      console.warn("sendMatchEmail: GMAIL_USER or GMAIL_PASS not set, skipping");
+      return;
+    }
+
+    const postA = await ctx.runQuery(internal.posts.getPostInternal, {
+      postId: postAId,
+    });
+    const postB = await ctx.runQuery(internal.posts.getPostInternal, {
+      postId: postBId,
+    });
+    if (!postA || !postB) return;
+
+    const emailA = await ctx.runQuery(internal.users.getUserEmailInternal, {
+      userId: postA.userId,
+    });
+    const emailB = await ctx.runQuery(internal.users.getUserEmailInternal, {
+      userId: postB.userId,
+    });
+
+    const baseUrl = (process.env.APP_BASE_URL ?? "").replace(/\/$/, "");
+    const matchesUrl = baseUrl ? `${baseUrl}/matches` : "/matches";
+    const pct = Math.round(score * 100);
+
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: { user: gmailUser, pass: gmailPass },
+    });
+
+    const sendOne = async (to: string, ownPost: typeof postA) => {
+      if (!to) return;
+      const subject = "🎉 MatchMyStuff — We found a match for your item!";
+      const text = [
+        `Good news! We found a ${pct}% match for your ${ownPost.type} item: "${ownPost.title}".`,
+        "",
+        `View your matches: ${matchesUrl}`,
+        "",
+        "Powered by AI. Driven by kindness.",
+      ].join("\n");
+      const html = `
+        <p>Good news! We found a <strong>${pct}% match</strong> for your ${ownPost.type} item:</p>
+        <p><strong>${ownPost.title}</strong></p>
+        <p><a href="${matchesUrl}">View your matches</a></p>
+        <p style="color:#666;font-size:12px;">Powered by AI. Driven by kindness.</p>
+      `;
+      try {
+        await transporter.sendMail({
+          from: gmailUser,
+          to,
+          subject,
+          text,
+          html,
+        });
+      } catch (err) {
+        console.error("sendMatchEmail failed for", to, err);
+      }
+    };
+
+    try {
+      await Promise.all([
+        sendOne(emailA ?? "", postA),
+        sendOne(emailB ?? "", postB),
+      ]);
+    } catch (err) {
+      console.error("sendMatchEmail error:", err);
     }
   },
 });

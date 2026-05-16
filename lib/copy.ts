@@ -91,6 +91,18 @@ export const COPY = {
     searchLoading: "Searching…",
     searchEmpty: "No matching posts found. Try different words.",
   },
+  map: {
+    title: "Near you",
+    loading: "Loading map pins…",
+    nearbyHint: "Showing items reported within ~120 km of your location.",
+    defaultHint: "Showing items across Sri Lanka. Enable location for nearby results.",
+    legendLost: "Lost",
+    legendFound: "Found",
+    foundItem: "Found item",
+    foundPrivacy: "Details unlock after you are matched.",
+    viewPost: "View post",
+    noPins: "No mappable posts yet.",
+  },
   cta: {
     headline: "Ready to make a difference?",
     subtext:
@@ -149,6 +161,8 @@ export const COPY = {
     titleMin: "Title must be at least 3 characters",
     descriptionMin: "Description must be at least 10 characters",
     imageRequired: "Please add and confirm a photo, or switch to describe-only mode",
+    foundPhotoRequired: "A photo is required for found items so owners can identify them.",
+    foundImageRequired: "Please upload a photo of the found item.",
     validatingImage: "Validating image…",
     imageInvalid: "Please upload a clear photo of the lost or found item.",
     editorTitle: "Adjust your photo",

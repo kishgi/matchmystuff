@@ -1,6 +1,14 @@
 "use client";
 
-import { DragEvent, FormEvent, use, useCallback, useRef, useState } from "react";
+import {
+  DragEvent,
+  FormEvent,
+  use,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useAction, useMutation, useQuery } from "convex/react";
@@ -23,6 +31,7 @@ export default function ReportPage({
 }) {
   const { type: typeParam } = use(params);
   const type = (typeParam === "found" ? "found" : "lost") as ReportType;
+  const isFoundOnly = type === "found";
   const accent = type === "lost" ? C.coral : C.sky;
   const heading = type === "lost" ? COPY.report.lostHeading : COPY.report.foundHeading;
 
@@ -35,6 +44,11 @@ export default function ReportPage({
   const createPost = useMutation(api.posts.createPost);
 
   const [mode, setMode] = useState<ReportMode>("photo");
+
+  useEffect(() => {
+    if (isFoundOnly) setMode("photo");
+  }, [isFoundOnly]);
+
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [location, setLocation] = useState("");
@@ -124,13 +138,20 @@ export default function ReportPage({
     const nextErrors: typeof errors = {};
     if (title.trim().length < 3) nextErrors.title = COPY.report.titleMin;
     if (description.trim().length < 10) nextErrors.description = COPY.report.descriptionMin;
-    if (mode === "photo" && !storageId) nextErrors.image = COPY.report.imageRequired;
+    if (!storageId) {
+      nextErrors.image = isFoundOnly
+        ? COPY.report.foundImageRequired
+        : mode === "photo"
+          ? COPY.report.imageRequired
+          : undefined;
+    }
+    if (nextErrors.image === undefined) delete nextErrors.image;
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0 || !user) return;
     setSubmitting(true);
     try {
       let aiDescription: string | undefined;
-      if (mode === "photo" && storageId) {
+      if (storageId) {
         setValidating(true);
         const imageUrl = await getFileUrl({ storageId });
         if (!imageUrl) {
@@ -174,7 +195,7 @@ export default function ReportPage({
     !validating &&
     !uploading &&
     !pendingFile &&
-    (mode === "describe" || !!storageId);
+    (isFoundOnly ? !!storageId : mode === "describe" || !!storageId);
 
   return (
     <div className="page-container-narrow">
@@ -185,30 +206,41 @@ export default function ReportPage({
         onSubmit={handleSubmit}
         className="card-surface space-y-6 p-6 md:p-8"
       >
-        <div
-          className="flex gap-2 rounded-full bg-gray-100 p-1"
-          role="tablist"
-          aria-label="Report mode"
-        >
-          {(["photo", "describe"] as const).map((m) => (
-            <button
-              key={m}
-              type="button"
-              role="tab"
-              aria-selected={mode === m}
-              onClick={() => switchMode(m)}
-              className="flex-1 rounded-full px-4 py-2.5 text-sm font-semibold transition-colors"
-              style={{
-                backgroundColor: mode === m ? accent : "transparent",
-                color: mode === m ? "#fff" : C.slate,
-              }}
-            >
-              {m === "photo" ? COPY.report.modePhoto : COPY.report.modeDescribe}
-            </button>
-          ))}
-        </div>
+        {!isFoundOnly && (
+          <div
+            className="flex gap-2 rounded-full bg-gray-100 p-1"
+            role="tablist"
+            aria-label="Report mode"
+          >
+            {(["photo", "describe"] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                role="tab"
+                aria-selected={mode === m}
+                onClick={() => switchMode(m)}
+                className="flex-1 rounded-full px-4 py-2.5 text-sm font-semibold transition-colors"
+                style={{
+                  backgroundColor: mode === m ? accent : "transparent",
+                  color: mode === m ? "#fff" : C.slate,
+                }}
+              >
+                {m === "photo" ? COPY.report.modePhoto : COPY.report.modeDescribe}
+              </button>
+            ))}
+          </div>
+        )}
 
-        {mode === "describe" && (
+        {isFoundOnly && (
+          <p
+            className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 text-sm leading-relaxed"
+            style={{ color: C.slate }}
+          >
+            {COPY.report.foundPhotoRequired}
+          </p>
+        )}
+
+        {!isFoundOnly && mode === "describe" && (
           <p
             className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 text-sm leading-relaxed"
             style={{ color: C.slate }}
@@ -253,7 +285,7 @@ export default function ReportPage({
         </div>
 
         <AnimatePresence mode="wait">
-          {mode === "photo" && pendingFile ? (
+          {(isFoundOnly || mode === "photo") && pendingFile ? (
             <motion.div
               key="editor"
               initial={fadeIn.initial}
@@ -270,7 +302,7 @@ export default function ReportPage({
                 }}
               />
             </motion.div>
-          ) : mode === "photo" ? (
+          ) : isFoundOnly || mode === "photo" ? (
             <motion.div
               key="upload"
               initial={fadeIn.initial}

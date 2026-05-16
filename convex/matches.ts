@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
+import { internal } from "./_generated/api";
 import { internalMutation, mutation, query } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 
@@ -116,6 +117,12 @@ export const createMatch = internalMutation({
 
     await ctx.db.patch(postAId, { matched: true });
     await ctx.db.patch(postBId, { matched: true });
+
+    await ctx.scheduler.runAfter(0, internal.actions.sendMatchEmail, {
+      postAId,
+      postBId,
+      score: args.score,
+    });
 
     return matchId;
   },
