@@ -8,6 +8,8 @@ const isProtectedRoute = createRouteMatcher([
   "/report(.*)",
   "/matches(.*)",
   "/my-posts(.*)",
+  "/conversations(.*)",
+  "/chat(.*)",
 ]);
 
 export default convexAuthNextjsMiddleware(async (request, { convexAuth }) => {

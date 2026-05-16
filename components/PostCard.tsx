@@ -7,6 +7,9 @@ import { COPY } from "@/lib/copy";
 import { timeAgo } from "@/lib/time";
 import type { Id } from "@/convex/_generated/dataModel";
 
+const BLUR =
+  "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PC9zdmc+";
+
 export type PostCardProps = {
   _id: Id<"posts">;
   type: "lost" | "found";
@@ -34,7 +37,7 @@ export function PostCard({
   const badgeLabel = type === "lost" ? COPY.postCard.lost : COPY.postCard.found;
 
   return (
-    <article className="card-surface group relative overflow-hidden rounded-2xl p-5 transition-all duration-200 hover:scale-[1.02]">
+    <article className="card-surface group relative p-5 transition-all duration-200 hover:scale-[1.02]">
       <Link href={`/post/${_id}`} className="block">
         <span
           className="absolute left-7 top-7 z-10 rounded-full px-3 py-1 text-xs font-semibold text-white"
@@ -43,7 +46,7 @@ export function PostCard({
           {badgeLabel}
         </span>
         {matched && (
-          <span className="absolute right-7 top-7 z-10 rounded-full bg-green-500 px-3 py-1 text-xs font-semibold text-white">
+          <span className="absolute right-7 top-7 z-10 animate-pulse rounded-full bg-green-500 px-3 py-1 text-xs font-semibold text-white">
             {COPY.postCard.matched}
           </span>
         )}
@@ -53,6 +56,8 @@ export function PostCard({
               src={imageUrl}
               alt=""
               fill
+              placeholder="blur"
+              blurDataURL={BLUR}
               className="object-cover transition-transform duration-300 group-hover:scale-105"
               sizes="(max-width: 768px) 100vw, 33vw"
             />

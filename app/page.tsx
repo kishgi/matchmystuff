@@ -6,18 +6,13 @@ import { useQuery } from "convex/react";
 import { motion, AnimatePresence } from "framer-motion";
 import { api } from "@/convex/_generated/api";
 import { FloatingAssets } from "@/components/FloatingAssets";
+import { StatsBar } from "@/components/StatsBar";
 import { Logo } from "@/components/Logo";
 import { PostCard } from "@/components/PostCard";
 import { Skeleton } from "@/components/Skeleton";
 import { C } from "@/lib/colors";
 import { COPY } from "@/lib/copy";
 import { fadeInUp, inViewFadeInUp } from "@/lib/motion";
-
-const stats = [
-  COPY.stats.recovered,
-  COPY.stats.accuracy,
-  COPY.stats.response,
-] as const;
 
 const stepIcons = [
   <svg key="camera" className="h-10 w-10" style={{ color: C.teal }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -67,6 +62,12 @@ export default function HomePage() {
           <p className="mx-auto mt-8 max-w-2xl text-lg leading-relaxed md:text-xl" style={{ color: C.slate }}>
             {COPY.hero.subtext}
           </p>
+          <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed md:text-lg" style={{ color: C.slate, opacity: 0.9 }}>
+            {COPY.hero.subtext2}
+          </p>
+          <p className="mt-6 text-sm font-medium tracking-wide" style={{ color: C.teal }}>
+            {COPY.hero.trustLine}
+          </p>
           <motion.div
             className="mt-12 flex flex-col items-center justify-center gap-4 sm:flex-row sm:gap-5"
             initial={fadeInUp.initial}
@@ -83,21 +84,63 @@ export default function HomePage() {
         </motion.div>
       </section>
 
-      <section className="py-6 md:py-8" style={{ backgroundColor: C.teal }}>
-        <div className="mx-auto flex max-w-5xl flex-col items-center justify-center gap-5 px-4 text-center text-white sm:flex-row sm:gap-0">
-          {stats.map((stat, i) => (
-            <div key={stat} className="flex flex-1 items-center justify-center gap-4 sm:px-8">
-              {i > 0 && <span className="hidden h-8 w-px bg-white/30 sm:block" aria-hidden />}
-              <p className="text-base font-medium md:text-lg">{stat}</p>
-            </div>
+      <StatsBar />
+
+      <section className="page-container">
+        <div className="mx-auto mb-14 max-w-3xl text-center">
+          <h2 className="mb-4" style={{ color: C.teal }}>
+            {COPY.features.title}
+          </h2>
+          <p className="text-lg leading-relaxed" style={{ color: C.slate }}>
+            {COPY.features.subtitle}
+          </p>
+        </div>
+        <div className="grid gap-6 sm:grid-cols-2">
+          {COPY.features.items.map((feature, i) => (
+            <motion.div
+              key={feature.title}
+              className="card-surface rounded-2xl border-l-4 p-7"
+              style={{ borderLeftColor: i % 2 === 0 ? C.coral : C.sky }}
+              {...inViewFadeInUp}
+              transition={{ ...inViewFadeInUp.transition, delay: i * 0.08 }}
+            >
+              <h3 className="mb-3 font-semibold" style={{ color: C.teal }}>
+                {feature.title}
+              </h3>
+              <p className="text-base leading-relaxed" style={{ color: C.slate }}>
+                {feature.description}
+              </p>
+            </motion.div>
           ))}
         </div>
       </section>
 
-      <section className="page-container">
-        <h2 className="mb-14 text-center" style={{ color: C.teal }}>
-          {COPY.howItWorks.title}
-        </h2>
+      <section className="page-container pt-0">
+        <div
+          className="rounded-3xl px-8 py-12 md:px-14 md:py-16"
+          style={{ backgroundColor: `${C.teal}08` }}
+        >
+          <h2 className="mb-5 text-center md:text-left" style={{ color: C.teal }}>
+            {COPY.community.title}
+          </h2>
+          <p className="mx-auto max-w-3xl text-center text-lg leading-relaxed md:mx-0 md:text-left" style={{ color: C.slate }}>
+            {COPY.community.body}
+          </p>
+          <p className="mx-auto mt-5 max-w-3xl text-center text-base leading-relaxed md:mx-0 md:text-left" style={{ color: C.slate, opacity: 0.9 }}>
+            {COPY.community.body2}
+          </p>
+        </div>
+      </section>
+
+      <section className="page-container pt-0">
+        <div className="mb-14 text-center">
+          <h2 className="mb-3" style={{ color: C.teal }}>
+            {COPY.howItWorks.title}
+          </h2>
+          <p className="text-lg" style={{ color: C.slate }}>
+            {COPY.howItWorks.subtitle}
+          </p>
+        </div>
         <div className="grid gap-8 md:grid-cols-3">
           {COPY.howItWorks.steps.map((step, i) => (
             <motion.div
@@ -145,7 +188,7 @@ export default function HomePage() {
           </button>
         </div>
         <motion.div layout className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-          <AnimatePresence mode="popLayout">
+          <AnimatePresence mode="popLayout" key={tab}>
             {posts === undefined
               ? Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="aspect-square" />)
               : filtered.map((post) => (
@@ -171,9 +214,17 @@ export default function HomePage() {
         <p className="mt-4 text-lg md:text-xl" style={{ color: C.sky }}>
           {COPY.cta.subtext}
         </p>
-        <Link href="/report/found" className="btn-primary mt-10" style={{ backgroundColor: C.coral }}>
-          {COPY.cta.button}
-        </Link>
+        <motion.div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row sm:gap-5">
+          <Link href="/report/found" className="btn-primary" style={{ backgroundColor: C.coral }}>
+            {COPY.cta.button}
+          </Link>
+          <Link
+            href="/report/lost"
+            className="rounded-full border-2 border-white/60 px-8 py-3 text-base font-semibold text-white transition-colors hover:border-white hover:bg-white/10"
+          >
+            {COPY.cta.secondary}
+          </Link>
+        </motion.div>
       </section>
     </>
   );
