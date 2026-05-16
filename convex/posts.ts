@@ -24,6 +24,7 @@ export const createPost = mutation({
     location: v.string(),
     imageStorageId: v.optional(v.string()),
     userName: v.string(),
+    aiDescription: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -44,6 +45,7 @@ export const createPost = mutation({
       description: args.description,
       location: args.location,
       imageUrl,
+      aiDescription: args.aiDescription,
       userId: userId as string,
       userName: args.userName,
       matched: false,

@@ -2,11 +2,15 @@
 
 import OpenAI from "openai";
 import { v } from "convex/values";
+import type { Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
-import { internalAction } from "./_generated/server";
+import { action, internalAction } from "./_generated/server";
 import {
+  buildAiDescriptionFromValidation,
+  IMAGE_VALIDATION_ERROR,
   IMAGE_VALIDATION_PROMPT,
   parseValidationResponse,
+  type ImageValidationResult,
 } from "./lib/imageValidation";
 import {
   calculateLocationScore,
@@ -26,10 +30,9 @@ function getOpenAI() {
   return new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 }
 
-async function validateImage(imageUrl: string): Promise<{
-  valid: boolean;
-  reason?: string;
-}> {
+async function runImageValidation(
+  imageUrl: string,
+): Promise<ImageValidationResult> {
   const openai = getOpenAI();
   const response = await openai.chat.completions.create({
     model: "gpt-4o",
@@ -43,7 +46,7 @@ async function validateImage(imageUrl: string): Promise<{
         ],
       },
     ],
-    max_tokens: 150,
+    max_tokens: 180,
   });
   const raw = response.choices[0]?.message?.content?.trim() ?? "";
   return parseValidationResponse(raw);
@@ -86,6 +89,104 @@ async function summarizeText(
   return response.choices[0]?.message?.content?.trim() ?? "";
 }
 
+export const validateImage = action({
+  args: { imageUrl: v.string() },
+  handler: async (_ctx, { imageUrl }) => {
+    try {
+      const result = await runImageValidation(imageUrl);
+      const aiDescription = buildAiDescriptionFromValidation(result);
+      return {
+        valid: result.valid,
+        reason: result.valid
+          ? undefined
+          : (result.reason ?? IMAGE_VALIDATION_ERROR),
+        itemType: result.itemType,
+        category: result.category,
+        color: result.color,
+        description: result.description,
+        aiDescription: aiDescription || undefined,
+      };
+    } catch (error) {
+      console.error("validateImage error:", error);
+      return {
+        valid: false,
+        reason: IMAGE_VALIDATION_ERROR,
+      };
+    }
+  },
+});
+
+type SearchPostResult = {
+  _id: Id<"posts">;
+  type: "lost" | "found";
+  title: string;
+  description: string;
+  location: string;
+  imageUrl: string;
+  userName: string;
+  matched: boolean;
+  createdAt: number;
+  score: number;
+};
+
+export const semanticSearchPosts = action({
+  args: {
+    query: v.string(),
+    type: v.optional(v.union(v.literal("lost"), v.literal("found"))),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, { query, type, limit = 24 }): Promise<SearchPostResult[]> => {
+    const trimmed = query.trim();
+    if (!trimmed) return [];
+
+    try {
+      const openai = getOpenAI();
+      const emb = await openai.embeddings.create({
+        model: "text-embedding-3-small",
+        input: trimmed,
+      });
+      const vector = emb.data[0].embedding;
+
+      const searchOpts = {
+        vector,
+        limit: Math.min(limit, 50),
+      };
+      const vectorResults = type
+        ? await ctx.vectorSearch("posts", "by_embedding", {
+            ...searchOpts,
+            filter: (q) => q.eq("type", type),
+          })
+        : await ctx.vectorSearch("posts", "by_embedding", searchOpts);
+
+      const results: SearchPostResult[] = [];
+      for (const hit of vectorResults) {
+        const post = await ctx.runQuery(internal.posts.getPostInternal, {
+          postId: hit._id,
+        });
+        if (!post) continue;
+        const status = post.processingStatus ?? "ready";
+        if (status !== "ready" || post.embedding.length === 0) continue;
+        results.push({
+          _id: post._id,
+          type: post.type,
+          title: post.title,
+          description: post.description,
+          location: post.location,
+          imageUrl: post.imageUrl,
+          userName: post.userName,
+          matched: post.matched,
+          createdAt: post.createdAt,
+          score: hit._score,
+        });
+      }
+      return results;
+    } catch (error) {
+      console.error("semanticSearchPosts error:", error);
+      return [];
+    }
+  },
+});
+
 export const processPost = internalAction({
   args: { postId: v.id("posts") },
   handler: async (ctx, { postId }) => {
@@ -105,10 +206,11 @@ export const processPost = internalAction({
     });
 
     const hasImage = Boolean(post.imageUrl?.trim());
+    let aiDescription = post.aiDescription?.trim() ?? "";
 
-    if (hasImage) {
+    if (hasImage && !aiDescription) {
       try {
-        const validation = await validateImage(post.imageUrl);
+        const validation = await runImageValidation(post.imageUrl);
         if (!validation.valid) {
           await ctx.runMutation(internal.posts.markRejected, {
             id: postId,
@@ -118,6 +220,7 @@ export const processPost = internalAction({
           });
           return;
         }
+        aiDescription = buildAiDescriptionFromValidation(validation);
       } catch (error) {
         console.error("Image validation error:", error);
         await ctx.runMutation(internal.posts.markRejected, {
@@ -128,30 +231,30 @@ export const processPost = internalAction({
       }
     }
 
-    let aiDescription = post.aiDescription ?? "";
-
-    try {
-      if (hasImage) {
-        aiDescription = await describeImage(post.imageUrl);
-      } else {
-        aiDescription = await summarizeText(
-          post.title,
-          post.description,
-          post.location,
-        );
-      }
-    } catch (error) {
-      console.error("OpenAI description error:", error);
-      if (!hasImage) {
-        aiDescription = [post.title, post.description, post.location]
-          .filter(Boolean)
-          .join(". ");
-      } else {
-        await ctx.runMutation(internal.posts.markRejected, {
-          id: postId,
-          reason: "We could not analyze your image. Please try another photo.",
-        });
-        return;
+    if (!aiDescription) {
+      try {
+        if (hasImage) {
+          aiDescription = await describeImage(post.imageUrl);
+        } else {
+          aiDescription = await summarizeText(
+            post.title,
+            post.description,
+            post.location,
+          );
+        }
+      } catch (error) {
+        console.error("OpenAI description error:", error);
+        if (!hasImage) {
+          aiDescription = [post.title, post.description, post.location]
+            .filter(Boolean)
+            .join(". ");
+        } else {
+          await ctx.runMutation(internal.posts.markRejected, {
+            id: postId,
+            reason: "We could not analyze your image. Please try another photo.",
+          });
+          return;
+        }
       }
     }
 

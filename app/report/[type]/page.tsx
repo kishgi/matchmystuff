@@ -3,7 +3,7 @@
 import { DragEvent, FormEvent, use, useCallback, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { motion, AnimatePresence } from "framer-motion";
 import { api } from "@/convex/_generated/api";
 import { FormInput, FormTextarea } from "@/components/FormInput";
@@ -30,6 +30,8 @@ export default function ReportPage({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const user = useQuery(api.users.getCurrentUser);
   const generateUploadUrl = useMutation(api.storage.generateUploadUrl);
+  const getFileUrl = useMutation(api.storage.getFileUrl);
+  const validateImage = useAction(api.actions.validateImage);
   const createPost = useMutation(api.posts.createPost);
 
   const [mode, setMode] = useState<ReportMode>("photo");
@@ -41,6 +43,7 @@ export default function ReportPage({
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [validating, setValidating] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [errors, setErrors] = useState<{
@@ -126,12 +129,33 @@ export default function ReportPage({
     if (Object.keys(nextErrors).length > 0 || !user) return;
     setSubmitting(true);
     try {
+      let aiDescription: string | undefined;
+      if (mode === "photo" && storageId) {
+        setValidating(true);
+        const imageUrl = await getFileUrl({ storageId });
+        if (!imageUrl) {
+          setErrors((e) => ({ ...e, image: COPY.report.imageInvalid }));
+          return;
+        }
+        const validation = await validateImage({ imageUrl });
+        if (!validation.valid) {
+          setErrors((e) => ({
+            ...e,
+            image: validation.reason ?? COPY.report.imageInvalid,
+          }));
+          toastError(validation.reason ?? COPY.report.imageInvalid);
+          return;
+        }
+        aiDescription = validation.aiDescription;
+      }
+
       const postId = await createPost({
         type,
         title,
         description,
         location,
         ...(storageId ? { imageStorageId: storageId } : {}),
+        ...(aiDescription ? { aiDescription } : {}),
         userName: user.name ?? user.email ?? "Anonymous",
       });
       toastSuccess(COPY.toast.reportSuccess);
@@ -140,12 +164,14 @@ export default function ReportPage({
       toastError(COPY.toast.reportError);
     } finally {
       setSubmitting(false);
+      setValidating(false);
     }
   };
 
   const canSubmit =
     !!user &&
     !submitting &&
+    !validating &&
     !uploading &&
     !pendingFile &&
     (mode === "describe" || !!storageId);
@@ -324,10 +350,10 @@ export default function ReportPage({
           className="btn-primary flex w-full gap-2 disabled:opacity-60"
           style={{ backgroundColor: accent }}
         >
-          {submitting && (
+          {(submitting || validating) && (
             <span className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
           )}
-          {COPY.report.submit}
+          {validating ? COPY.report.validatingImage : COPY.report.submit}
         </button>
       </form>
     </div>
