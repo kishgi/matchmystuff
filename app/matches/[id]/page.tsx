@@ -28,7 +28,7 @@ function MatchSide({
 }) {
   const accent = post.type === "lost" ? C.coral : C.sky;
   return (
-    <div className="card-surface flex-1 space-y-5 p-6 md:p-8">
+    <div className="card-surface flex-1 overflow-hidden rounded-2xl p-6 md:p-8">
       <div className="relative aspect-square overflow-hidden rounded-2xl bg-gray-50">
         {post.imageUrl && (
           <Image src={post.imageUrl} alt="" fill className="object-cover" sizes="50vw" />

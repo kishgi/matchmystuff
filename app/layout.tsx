@@ -24,8 +24,8 @@ export default async function RootLayout({
 }>) {
   return (
     <ConvexAuthNextjsServerProvider>
-      <html lang="en" className={`${spaceGrotesk.variable} h-full`}>
-        <body className="flex min-h-full flex-col font-sans">
+      <html lang="en" className={`${spaceGrotesk.variable} h-full`} suppressHydrationWarning>
+        <body className="flex min-h-full flex-col font-sans" suppressHydrationWarning>
           <ConvexClientProvider>
             <AppShell>{children}</AppShell>
             <Toaster />

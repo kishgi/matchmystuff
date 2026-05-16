@@ -3,18 +3,19 @@ import Image from "next/image";
 type LogoProps = {
   height?: number;
   className?: string;
+  priority?: boolean;
 };
 
-export function Logo({ height = 48, className = "" }: LogoProps) {
+export function Logo({ height = 48, className = "", priority = false }: LogoProps) {
   return (
     <Image
       src="/logo.png"
       alt=""
-      width={height * 2}
+      width={height * 3}
       height={height}
-      className={`h-auto w-auto object-contain ${className}`}
-      style={{ height }}
-      priority
+      className={`object-contain ${className}`}
+      style={{ height, width: "auto" }}
+      priority={priority}
     />
   );
 }
