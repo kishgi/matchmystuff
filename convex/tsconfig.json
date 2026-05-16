@@ -1,11 +1,4 @@
 {
-  "compilerOptions": {
-    "allowJs": true,
-    "strict": true,
-    "moduleResolution": "Bundler",
-    "jsx": "react-jsx",
-    "skipLibCheck": true,
-    "noEmit": true
   "extends": "../tsconfig.json",
   "compilerOptions": {
     "module": "ESNext",
@@ -19,5 +12,6 @@
     "allowJs": true,
     "skipLibCheck": true
   },
-  "include": ["./**/*"]
+  "include": ["./**/*"],
+  "exclude": ["./_generated"]
 }
