@@ -15,7 +15,7 @@ export const COPY = {
     line1: "Lost something?",
     line2: "We'll find it.",
     subtext:
-      "Upload a photo. Our AI matches it with found items nearby — instantly.",
+      "MatchMyStuff uses AI-powered image understanding and real-time matching to connect lost items with found items instantly.",
     lostCta: "I Lost Something",
     foundCta: "I Found Something",
   },
