@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
-import type { Id } from "@/convex/_generated/dataModel";
 
-const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
+function getConvexClient() {
+  const url = process.env.NEXT_PUBLIC_CONVEX_URL;
+  if (!url) {
+    throw new Error("NEXT_PUBLIC_CONVEX_URL is not set");
+  }
+  return new ConvexHttpClient(url);
+}
 
 export async function POST(request: NextRequest) {
   try {
+    const convex = getConvexClient();
     const formData = await request.formData();
     const file = formData.get("file");
     if (!file || !(file instanceof File)) {
@@ -22,19 +28,19 @@ export async function POST(request: NextRequest) {
     if (!uploadResponse.ok) {
       return NextResponse.json(
         { error: "Upload failed" },
-        { status: uploadResponse.status }
+        { status: uploadResponse.status },
       );
     }
     const { storageId } = (await uploadResponse.json()) as {
-      storageId: Id<"_storage">;
+      storageId: string;
     };
-    const imageUrl = await convex.mutation(api.storage.saveFileUrl, {
+    const imageUrl = await convex.mutation(api.storage.getFileUrl, {
       storageId,
     });
     if (!imageUrl) {
       return NextResponse.json(
         { error: "Could not resolve image URL" },
-        { status: 500 }
+        { status: 500 },
       );
     }
     return NextResponse.json({ imageUrl });

@@ -1,16 +1,62 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { internal } from "./_generated/api";
+import {
+  internalMutation,
+  internalQuery,
+  mutation,
+  query,
+} from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 
+export const createPost = mutation({
+  args: {
+    type: v.union(v.literal("lost"), v.literal("found")),
+    title: v.string(),
+    description: v.string(),
+    location: v.string(),
+    imageStorageId: v.string(),
+    userName: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Unauthorized");
+
+    const imageUrl = await ctx.storage.getUrl(
+      args.imageStorageId as Parameters<typeof ctx.storage.getUrl>[0],
+    );
+    if (!imageUrl) throw new Error("Invalid image");
+
+    const postId = await ctx.db.insert("posts", {
+      type: args.type,
+      title: args.title,
+      description: args.description,
+      location: args.location,
+      imageUrl,
+      userId: userId as string,
+      userName: args.userName,
+      matched: false,
+      embedding: [],
+      createdAt: Date.now(),
+    });
+
+    await ctx.scheduler.runAfter(0, internal.actions.processPost, { postId });
+    return postId;
+  },
+});
+
 export const getPosts = query({
-  args: {},
-  handler: async (ctx) => {
-    const posts = await ctx.db
-      .query("posts")
-      .withIndex("by_created")
-      .order("desc")
-      .take(50);
-    return posts;
+  args: {
+    type: v.optional(v.union(v.literal("lost"), v.literal("found"))),
+  },
+  handler: async (ctx, { type }) => {
+    if (type) {
+      return await ctx.db
+        .query("posts")
+        .withIndex("by_type_created", (q) => q.eq("type", type))
+        .order("desc")
+        .take(50);
+    }
+    return await ctx.db.query("posts").order("desc").take(50);
   },
 });
 
@@ -26,66 +72,22 @@ export const getMyPosts = query({
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return [];
-    const posts = await ctx.db.query("posts").order("desc").collect();
-    return posts.filter((p) => p.userId === userId);
+    return await ctx.db
+      .query("posts")
+      .withIndex("by_user", (q) => q.eq("userId", userId as string))
+      .order("desc")
+      .collect();
   },
 });
 
-export const createPost = mutation({
+export const updateEmbedding = internalMutation({
   args: {
-    type: v.union(v.literal("lost"), v.literal("found")),
-    title: v.string(),
-    description: v.string(),
-    location: v.string(),
-    imageStorageId: v.string(),
-    userName: v.string(),
+    id: v.id("posts"),
+    embedding: v.array(v.float64()),
+    aiDescription: v.string(),
   },
-  handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("Unauthorized");
-    const imageUrl = await ctx.storage.getUrl(args.imageStorageId);
-    if (!imageUrl) throw new Error("Invalid image");
-    const { imageStorageId: _, ...rest } = args;
-    const postId = await ctx.db.insert("posts", {
-      ...rest,
-      imageUrl,
-      userId,
-      aiDescription: args.description,
-      matched: false,
-      createdAt: Date.now(),
-    });
-    return postId;
-import {
-  internalMutation,
-  internalQuery,
-  mutation,
-} from "./_generated/server";
-import { internal } from "./_generated/api";
-
-export const create = mutation({
-  args: {
-    title: v.string(),
-    description: v.string(),
-    imageUrl: v.string(),
-    location: v.string(),
-    type: v.union(v.literal("lost"), v.literal("found")),
-  },
-  handler: async (ctx, args) => {
-    const postId = await ctx.db.insert("posts", {
-      title: args.title,
-      description: args.description,
-      imageUrl: args.imageUrl,
-      location: args.location,
-      type: args.type,
-      embeddingProcessed: false,
-      createdAt: Date.now(),
-    });
-    await ctx.scheduler.runAfter(
-      0,
-      internal.actions.processPost.processPost,
-      { postId }
-    );
-    return postId;
+  handler: async (ctx, { id, embedding, aiDescription }) => {
+    await ctx.db.patch(id, { embedding, aiDescription });
   },
 });
 
@@ -93,48 +95,5 @@ export const getPostInternal = internalQuery({
   args: { postId: v.id("posts") },
   handler: async (ctx, { postId }) => {
     return await ctx.db.get(postId);
-  },
-});
-
-export const listOppositePostsWithEmbeddings = internalQuery({
-  args: {
-    type: v.union(v.literal("lost"), v.literal("found")),
-    excludePostId: v.id("posts"),
-  },
-  handler: async (ctx, { type, excludePostId }) => {
-    const posts = await ctx.db
-      .query("posts")
-      .withIndex("by_type", (q) => q.eq("type", type))
-      .collect();
-    return posts.filter(
-      (post) =>
-        post._id !== excludePostId &&
-        post.embedding !== undefined &&
-        post.embedding.length > 0
-    );
-  },
-});
-
-export const saveAiDescription = internalMutation({
-  args: {
-    postId: v.id("posts"),
-    aiDescription: v.string(),
-  },
-  handler: async (ctx, { postId, aiDescription }) => {
-    await ctx.db.patch(postId, { aiDescription });
-  },
-});
-
-export const updateEmbedding = internalMutation({
-  args: {
-    postId: v.id("posts"),
-    aiDescription: v.string(),
-    combinedText: v.string(),
-    embedding: v.array(v.float64()),
-    embeddingProcessed: v.boolean(),
-  },
-  handler: async (ctx, args) => {
-    const { postId, ...fields } = args;
-    await ctx.db.patch(postId, fields);
   },
 });

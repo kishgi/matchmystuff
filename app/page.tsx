@@ -42,7 +42,7 @@ const stepIcons = [
 type FeedTab = "lost" | "found";
 
 export default function HomePage() {
-  const posts = useQuery(api.posts.getPosts);
+  const posts = useQuery(api.posts.getPosts, {});
   const [tab, setTab] = useState<FeedTab>("lost");
 
   const filtered = useMemo(() => {

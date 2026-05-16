@@ -1,7 +1,6 @@
-import { mutation } from "./_generated/server";
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { mutation } from "./_generated/server";
+import { getAuthUserId } from "@convex-dev/auth/server";
 
 export const generateUploadUrl = mutation({
   args: {},
@@ -11,13 +10,12 @@ export const generateUploadUrl = mutation({
     return await ctx.storage.generateUploadUrl();
   },
 });
-    return await ctx.storage.generateUploadUrl();
-  },
-});
 
-export const saveFileUrl = mutation({
-  args: { storageId: v.id("_storage") },
+export const getFileUrl = mutation({
+  args: { storageId: v.string() },
   handler: async (ctx, { storageId }) => {
-    return await ctx.storage.getUrl(storageId);
+    return await ctx.storage.getUrl(
+      storageId as Parameters<typeof ctx.storage.getUrl>[0],
+    );
   },
 });

@@ -8,48 +8,37 @@ export default defineSchema({
     type: v.union(v.literal("lost"), v.literal("found")),
     title: v.string(),
     description: v.string(),
-    location: v.string(),
+    aiDescription: v.optional(v.string()),
     imageUrl: v.string(),
-    userId: v.id("users"),
+    location: v.string(),
+    userId: v.string(),
     userName: v.string(),
-    aiDescription: v.optional(v.string()),
+    createdAt: v.number(),
+    embedding: v.array(v.float64()),
     matched: v.boolean(),
-    createdAt: v.number(),
-  }).index("by_created", ["createdAt"]),
-  matches: defineTable({
-    userId: v.id("users"),
-    postAId: v.id("posts"),
-    postBId: v.id("posts"),
-    score: v.number(),
-    seen: v.boolean(),
-    createdAt: v.number(),
-  }).index("by_user", ["userId"]),
-  notifications: defineTable({
-    userId: v.id("users"),
-    matchId: v.id("matches"),
-    postTitle: v.string(),
-    read: v.boolean(),
-    createdAt: v.number(),
-  }).index("by_user", ["userId"]),
-import { v } from "convex/values";
-
-export default defineSchema({
-  posts: defineTable({
-    title: v.string(),
-    description: v.string(),
-    aiDescription: v.optional(v.string()),
-    combinedText: v.optional(v.string()),
-    embedding: v.optional(v.array(v.float64())),
-    imageUrl: v.string(),
-    location: v.string(),
-    type: v.union(v.literal("lost"), v.literal("found")),
-    embeddingProcessed: v.optional(v.boolean()),
-    createdAt: v.number(),
-  }).index("by_type", ["type"]),
+  })
+    .index("by_type_created", ["type", "createdAt"])
+    .index("by_user", ["userId"])
+    .vectorIndex("by_embedding", {
+      vectorField: "embedding",
+      dimensions: 1536,
+      filterFields: ["type"],
+    }),
   matches: defineTable({
     postA: v.id("posts"),
     postB: v.id("posts"),
-    similarity: v.number(),
+    score: v.number(),
+    seenByA: v.boolean(),
+    seenByB: v.boolean(),
     createdAt: v.number(),
-  }).index("by_posts", ["postA", "postB"]),
+  })
+    .index("by_postA", ["postA"])
+    .index("by_postB", ["postB"]),
+  notifications: defineTable({
+    userId: v.string(),
+    matchId: v.id("matches"),
+    postId: v.id("posts"),
+    seen: v.boolean(),
+    createdAt: v.number(),
+  }).index("by_user", ["userId"]),
 });
