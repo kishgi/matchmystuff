@@ -69,6 +69,7 @@
   }
 
   .card-surface {
+<<<<<<< HEAD
     @apply rounded-2xl border border-gray-100 bg-white shadow-sm;
   }
 
@@ -81,5 +82,8 @@
 
   .leaflet-popup-content-wrapper {
     border-radius: 0.75rem;
+=======
+    @apply rounded-2xl bg-white p-6 border-0 shadow-none;
+>>>>>>> 3511f94 (CHanges)
   }
 }
