@@ -1,9 +1,9 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, Suspense, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { COPY } from "@/lib/copy";
@@ -56,8 +56,10 @@ const itemCards = [
 const inputClass =
   "w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-[#333F48] focus:outline-none focus:ring-2 focus:ring-[#4AB9E2]";
 
-export default function AuthPage() {
+function AuthPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get("redirect") ?? "/";
   const { signIn } = useAuthActions();
   const [tab, setTab] = useState<AuthTab>("signIn");
   const [error, setError] = useState<string | null>(null);
@@ -97,7 +99,7 @@ export default function AuthPage() {
         });
         toastSuccess(COPY.toast.authSignInSuccess);
       }
-      router.push("/");
+      router.push(redirectTo.startsWith("/") ? redirectTo : "/");
     } catch (err) {
       const message = parseAuthError(err, tab === "signUp");
       setError(message);
@@ -316,5 +318,13 @@ export default function AuthPage() {
         </div>
       </motion.div>
     </div>
+  );
+}
+
+export default function AuthPage() {
+  return (
+    <Suspense fallback={null}>
+      <AuthPageContent />
+    </Suspense>
   );
 }

@@ -9,9 +9,12 @@
  */
 
 import type * as actions from "../actions.js";
+import type * as admin from "../admin.js";
+import type * as adminAuth from "../adminAuth.js";
 import type * as auth from "../auth.js";
 import type * as conversations from "../conversations.js";
 import type * as http from "../http.js";
+import type * as lib_adminGuard from "../lib/adminGuard.js";
 import type * as lib_similarity from "../lib/similarity.js";
 import type * as matches from "../matches.js";
 import type * as messages from "../messages.js";
@@ -28,9 +31,12 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   actions: typeof actions;
+  admin: typeof admin;
+  adminAuth: typeof adminAuth;
   auth: typeof auth;
   conversations: typeof conversations;
   http: typeof http;
+  "lib/adminGuard": typeof lib_adminGuard;
   "lib/similarity": typeof lib_similarity;
   matches: typeof matches;
   messages: typeof messages;
