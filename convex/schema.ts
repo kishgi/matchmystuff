@@ -2,6 +2,13 @@ import { defineSchema, defineTable } from "convex/server";
 import { authTables } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 
+const processingStatus = v.union(
+  v.literal("pending"),
+  v.literal("processing"),
+  v.literal("ready"),
+  v.literal("rejected"),
+);
+
 export default defineSchema({
   ...authTables,
   posts: defineTable({
@@ -16,6 +23,8 @@ export default defineSchema({
     createdAt: v.number(),
     embedding: v.array(v.float64()),
     matched: v.boolean(),
+    processingStatus: v.optional(processingStatus),
+    rejectionReason: v.optional(v.string()),
   })
     .index("by_type_created", ["type", "createdAt"])
     .index("by_user", ["userId"])

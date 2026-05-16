@@ -12,6 +12,58 @@ import { COPY } from "@/lib/copy";
 import { timeAgo } from "@/lib/time";
 import { toastError } from "@/lib/toast";
 
+type ProcessingStatus = "pending" | "processing" | "ready" | "rejected";
+
+function StatusBanner({
+  status,
+  rejectionReason,
+}: {
+  status?: ProcessingStatus;
+  rejectionReason?: string;
+}) {
+  if (status === "rejected") {
+    return (
+      <div
+        className="mb-6 rounded-2xl border-2 px-5 py-4"
+        style={{ borderColor: C.coral, backgroundColor: `${C.coral}12` }}
+        role="alert"
+      >
+        <p className="font-semibold" style={{ color: C.coral }}>
+          {COPY.post.rejected}
+        </p>
+        {rejectionReason && (
+          <p className="mt-2 text-sm leading-relaxed" style={{ color: C.slate }}>
+            {rejectionReason}
+          </p>
+        )}
+        <p className="mt-2 text-sm" style={{ color: C.slate }}>
+          {COPY.post.rejectedHint}
+        </p>
+      </div>
+    );
+  }
+
+  if (status === "pending" || status === "processing") {
+    return (
+      <div
+        className="mb-6 rounded-2xl border-2 px-5 py-4"
+        style={{ borderColor: C.sky, backgroundColor: `${C.sky}12` }}
+        role="status"
+      >
+        <p className="flex items-center gap-2 font-semibold" style={{ color: C.teal }}>
+          <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+          {COPY.post.processing}
+        </p>
+        <p className="mt-2 text-sm leading-relaxed" style={{ color: C.slate }}>
+          {COPY.post.processingHint}
+        </p>
+      </div>
+    );
+  }
+
+  return null;
+}
+
 export default function PostDetailPage({
   params,
 }: {
@@ -45,11 +97,14 @@ export default function PostDetailPage({
   }
 
   const accent = post.type === "lost" ? C.coral : C.sky;
+  const status = post.processingStatus as ProcessingStatus | undefined;
 
   return (
     <article className="page-container-narrow">
+      <StatusBanner status={status} rejectionReason={post.rejectionReason} />
+
       <div className="relative mb-8 aspect-square overflow-hidden rounded-2xl bg-gray-50 shadow-sm">
-        {post.imageUrl && (
+        {post.imageUrl ? (
           <Image
             src={post.imageUrl}
             alt=""
@@ -57,6 +112,12 @@ export default function PostDetailPage({
             className="object-cover"
             sizes="(max-width: 768px) 100vw, 672px"
           />
+        ) : (
+          <div className="flex h-full flex-col items-center justify-center px-6 text-center">
+            <p className="text-lg font-medium" style={{ color: C.teal }}>
+              {COPY.post.noImage}
+            </p>
+          </div>
         )}
       </div>
       <div className="mb-5 flex flex-wrap items-center gap-3">
@@ -69,6 +130,14 @@ export default function PostDetailPage({
         {post.matched && (
           <span className="rounded-full bg-green-500 px-4 py-1.5 text-sm font-semibold text-white">
             {COPY.postCard.matched}
+          </span>
+        )}
+        {status === "rejected" && (
+          <span
+            className="rounded-full px-4 py-1.5 text-sm font-semibold text-white"
+            style={{ backgroundColor: C.coral }}
+          >
+            {COPY.myPosts.statusRejected}
           </span>
         )}
       </div>
