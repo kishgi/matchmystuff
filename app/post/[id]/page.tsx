@@ -113,7 +113,7 @@ export default function PostDetailPage({
             sizes="(max-width: 768px) 100vw, 672px"
           />
         ) : (
-          <div className="flex h-full flex-col items-center justify-center px-6 text-center">
+          <div className="flex h-full flex-row items-center justify-center px-6 text-center">
             <p className="text-lg font-medium" style={{ color: C.teal }}>
               {COPY.post.noImage}
             </p>
@@ -145,13 +145,14 @@ export default function PostDetailPage({
       <p className="mt-3 text-base" style={{ color: C.slate }}>
         {post.location} · {post.userName} · {timeAgo(post.createdAt)}
       </p>
-      <section className="card-surface mt-10 p-6 md:p-8">
+      <section className="card-surface mt-10">
+        <h2 className="mb-3 text-base font-semibold md:text-lg" style={{ color: C.teal }}>Description:</h2>
         <p className="text-base leading-relaxed md:text-lg" style={{ color: C.slate }}>
           {post.description}
         </p>
       </section>
       {post.aiDescription && (
-        <section className="card-surface mt-6 p-6 md:p-8">
+        <section className="card-surface mt-6">
           <h2 className="mb-3 text-base font-semibold md:text-lg" style={{ color: C.sky }}>
             {COPY.post.aiLabel}
           </h2>
