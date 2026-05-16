@@ -65,8 +65,9 @@ export default function HomePage() {
   const semanticSearch = useAction(api.actions.semanticSearchPosts);
   const [tab, setTab] = useState<FeedTab>("lost");
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<SearchHit[] | null>(null);
-  const [searching, setSearching] = useState(false);
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [semanticResults, setSemanticResults] = useState<SearchHit[] | null>(null);
+  const [semanticSearching, setSemanticSearching] = useState(false);
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(
     null,
   );
@@ -107,36 +108,63 @@ export default function HomePage() {
   }, [posts]);
 
   useEffect(() => {
-    const q = searchQuery.trim();
-    if (!q) {
-      setSearchResults(null);
-      setSearching(false);
+    const timer = setTimeout(() => setDebouncedQuery(searchQuery.trim()), 400);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const localResults = useQuery(
+    api.posts.searchPosts,
+    debouncedQuery ? { query: debouncedQuery, type: tab } : "skip",
+  );
+
+  useEffect(() => {
+    if (!debouncedQuery) {
+      setSemanticResults(null);
+      setSemanticSearching(false);
       return;
     }
-    setSearching(true);
-    const timer = setTimeout(() => {
-      void semanticSearch({ query: q, type: tab, limit: 24 })
-        .then((results) => setSearchResults(results))
-        .catch(() => setSearchResults([]))
-        .finally(() => setSearching(false));
-    }, 400);
-    return () => clearTimeout(timer);
-  }, [searchQuery, tab, semanticSearch]);
+    setSemanticSearching(true);
+    let cancelled = false;
+    void semanticSearch({ query: debouncedQuery, type: tab, limit: 24 })
+      .then((results) => {
+        if (!cancelled) setSemanticResults(results);
+      })
+      .catch(() => {
+        if (!cancelled) setSemanticResults([]);
+      })
+      .finally(() => {
+        if (!cancelled) setSemanticSearching(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [debouncedQuery, tab, semanticSearch]);
 
   const filtered = useMemo(() => {
-    const q = searchQuery.trim();
-    if (q) {
-      return searchResults ?? [];
+    if (!debouncedQuery) {
+      if (!posts) return [];
+      return [...posts]
+        .filter((p) => p.type === tab)
+        .sort((a, b) => b.createdAt - a.createdAt)
+        .slice(0, 6);
     }
-    if (!posts) return [];
-    return [...posts]
-      .filter((p) => p.type === tab)
-      .sort((a, b) => b.createdAt - a.createdAt)
-      .slice(0, 6);
-  }, [posts, tab, searchQuery, searchResults]);
 
-  const isSearchActive = searchQuery.trim().length > 0;
-  const feedLoading = isSearchActive ? searching : posts === undefined;
+    const byId = new Map<string, SearchHit>();
+    for (const hit of semanticResults ?? []) {
+      byId.set(hit._id, hit);
+    }
+    for (const hit of localResults ?? []) {
+      if (!byId.has(hit._id)) {
+        byId.set(hit._id, hit);
+      }
+    }
+    return Array.from(byId.values()).sort((a, b) => b.createdAt - a.createdAt);
+  }, [posts, tab, debouncedQuery, semanticResults, localResults]);
+
+  const isSearchActive = debouncedQuery.length > 0;
+  const feedLoading = isSearchActive
+    ? semanticSearching || localResults === undefined
+    : posts === undefined;
 
   return (
     <>
@@ -302,12 +330,12 @@ export default function HomePage() {
             {COPY.feed.foundTab}
           </button>
         </div>
-        {isSearchActive && searching && (
+        {isSearchActive && feedLoading && (
           <p className="mb-4 text-sm" style={{ color: C.slate }}>
             {COPY.feed.searchLoading}
           </p>
         )}
-        {isSearchActive && !searching && filtered.length === 0 && (
+        {isSearchActive && !feedLoading && filtered.length === 0 && (
           <p className="mb-4 text-sm" style={{ color: C.slate }}>
             {COPY.feed.searchEmpty}
           </p>

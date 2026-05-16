@@ -8,14 +8,13 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { C } from "@/lib/colors";
 import { COPY } from "@/lib/copy";
 import {
+  geocodeLocation,
   geocodeLocationsBatch,
   generalArea,
-  haversineKm,
   SRI_LANKA_CENTER,
 } from "@/lib/geocode";
 import "leaflet/dist/leaflet.css";
 
-const NEARBY_KM = 120;
 const MAP_CENTER_DEFAULT: [number, number] = [
   SRI_LANKA_CENTER.lat,
   SRI_LANKA_CENTER.lng,
@@ -41,7 +40,7 @@ function MapRecenter({
 }) {
   const map = useMap();
   useEffect(() => {
-    map.setView(center, zoom);
+    map.flyTo(center, zoom, { duration: 0.6 });
   }, [map, center, zoom]);
   return null;
 }
@@ -75,6 +74,10 @@ export function MapView({
   const geocodeCache = useRef(new Map<string, { lat: number; lng: number } | null>());
   const [geocoded, setGeocoded] = useState<GeocodedPost[]>([]);
   const [geocoding, setGeocoding] = useState(false);
+  const [placeQuery, setPlaceQuery] = useState("");
+  const [placeSearching, setPlaceSearching] = useState(false);
+  const [placeError, setPlaceError] = useState<string | null>(null);
+  const [placeCenter, setPlaceCenter] = useState<[number, number] | null>(null);
 
   const postsWithLocation = useMemo(
     () => posts.filter((p) => p.location.trim().length > 0),
@@ -118,29 +121,41 @@ export function MapView({
     };
   }, [postsWithLocation]);
 
-  const visible = useMemo(() => {
-    if (!userCoords) return geocoded;
-    return geocoded.filter(
-      (p) => haversineKm(userCoords, { lat: p.lat, lng: p.lng }) <= NEARBY_KM,
-    );
-  }, [geocoded, userCoords]);
-
   const center = useMemo((): [number, number] => {
+    if (placeCenter) return placeCenter;
     if (userCoords) return [userCoords.lat, userCoords.lng];
-    if (visible.length > 0) {
-      const lat = visible.reduce((s, p) => s + p.lat, 0) / visible.length;
-      const lng = visible.reduce((s, p) => s + p.lng, 0) / visible.length;
+    if (geocoded.length > 0) {
+      const lat = geocoded.reduce((s, p) => s + p.lat, 0) / geocoded.length;
+      const lng = geocoded.reduce((s, p) => s + p.lng, 0) / geocoded.length;
       return [lat, lng];
     }
     return MAP_CENTER_DEFAULT;
-  }, [userCoords, visible]);
+  }, [placeCenter, userCoords, geocoded]);
 
-  const zoom = userCoords ? 9 : visible.length > 0 ? 8 : 7;
+  const zoom = placeCenter ? 12 : userCoords ? 9 : geocoded.length > 0 ? 8 : 7;
 
   const showLimited = (post: MapPost) =>
     post.type === "found" &&
     post.userId !== currentUserId &&
     !matchedPostIds.has(post._id);
+
+  const handlePlaceSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const q = placeQuery.trim();
+    if (!q) return;
+    setPlaceError(null);
+    setPlaceSearching(true);
+    try {
+      const coords = await geocodeLocation(q);
+      if (!coords) {
+        setPlaceError(COPY.map.placeSearchFailed);
+        return;
+      }
+      setPlaceCenter([coords.lat, coords.lng]);
+    } finally {
+      setPlaceSearching(false);
+    }
+  };
 
   return (
     <div className="card-surface overflow-hidden rounded-2xl">
@@ -155,6 +170,35 @@ export function MapView({
               ? COPY.map.nearbyHint
               : COPY.map.defaultHint}
         </p>
+        <form
+          onSubmit={(e) => void handlePlaceSearch(e)}
+          className="mt-3 flex gap-2"
+        >
+          <input
+            type="search"
+            value={placeQuery}
+            onChange={(e) => {
+              setPlaceQuery(e.target.value);
+              setPlaceError(null);
+            }}
+            placeholder={COPY.map.placeSearchPlaceholder}
+            className="input-field min-w-0 flex-1 text-sm"
+            aria-label={COPY.map.placeSearchPlaceholder}
+          />
+          <button
+            type="submit"
+            disabled={placeSearching || !placeQuery.trim()}
+            className="btn-primary shrink-0 px-4 py-2 text-sm disabled:opacity-60"
+            style={{ backgroundColor: C.teal }}
+          >
+            {placeSearching ? "…" : COPY.map.placeSearchButton}
+          </button>
+        </form>
+        {placeError && (
+          <p className="mt-2 text-sm" style={{ color: C.coral }} role="alert">
+            {placeError}
+          </p>
+        )}
       </div>
       <div className="relative h-[220px] w-full md:h-[320px]" style={{ zIndex: 0 }}>
         <MapContainer
@@ -168,49 +212,44 @@ export function MapView({
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
           <MapRecenter center={center} zoom={zoom} />
-          {visible.map((post) => (
+          {geocoded.map((post) => (
             <Marker
               key={post._id}
               position={[post.lat, post.lng]}
               icon={makePinIcon(post)}
             >
               <Popup>
-                {showLimited(post) ? (
-                  <div className="min-w-[140px] text-sm">
-                    <p className="font-semibold" style={{ color: C.sky }}>
-                      {COPY.map.foundItem}
-                    </p>
-                    <p className="mt-1 text-gray-600">
-                      {generalArea(post.location)}
-                    </p>
-                    <p className="mt-2 text-xs text-gray-500">
+                <div className="min-w-[160px] text-sm">
+                  {post.imageUrl ? (
+                    <img
+                      src={post.imageUrl}
+                      alt=""
+                      className="mb-2 h-16 w-16 rounded-lg object-cover"
+                    />
+                  ) : null}
+                  <p className="font-semibold" style={{ color: C.teal }}>
+                    {showLimited(post) ? COPY.map.foundItem : post.title}
+                  </p>
+                  <p className="mt-1 text-gray-600">
+                    {showLimited(post)
+                      ? generalArea(post.location)
+                      : post.location}
+                  </p>
+                  {showLimited(post) && (
+                    <p className="mt-1 text-xs text-gray-500">
                       {COPY.map.foundPrivacy}
                     </p>
-                  </div>
-                ) : (
-                  <div className="min-w-[160px] text-sm">
-                    {post.imageUrl ? (
-                      <img
-                        src={post.imageUrl}
-                        alt=""
-                        className="mb-2 h-16 w-16 rounded-lg object-cover"
-                      />
-                    ) : null}
-                    <p className="font-semibold" style={{ color: C.teal }}>
-                      {post.title}
-                    </p>
-                    <p className="mt-1 text-gray-600">{post.location}</p>
-                    <Link
-                      href={`/post/${post._id}`}
-                      className="mt-2 inline-block font-medium underline"
-                      style={{
-                        color: post.type === "lost" ? C.coral : C.sky,
-                      }}
-                    >
-                      {COPY.map.viewPost}
-                    </Link>
-                  </div>
-                )}
+                  )}
+                  <Link
+                    href={`/post/${post._id}`}
+                    className="mt-2 inline-block font-medium underline"
+                    style={{
+                      color: post.type === "lost" ? C.coral : C.sky,
+                    }}
+                  >
+                    {COPY.map.viewPost}
+                  </Link>
+                </div>
               </Popup>
             </Marker>
           ))}
@@ -231,7 +270,7 @@ export function MapView({
           />
           {COPY.map.legendFound}
         </span>
-        {!geocoding && visible.length === 0 && (
+        {!geocoding && geocoded.length === 0 && (
           <span className="text-gray-500">{COPY.map.noPins}</span>
         )}
       </div>

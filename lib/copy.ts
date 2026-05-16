@@ -94,12 +94,16 @@ export const COPY = {
   map: {
     title: "Near you",
     loading: "Loading map pins…",
-    nearbyHint: "Showing items reported within ~120 km of your location.",
-    defaultHint: "Showing items across Sri Lanka. Enable location for nearby results.",
+    nearbyHint: "Centered on your location. Search a place to explore another area.",
+    defaultHint:
+      "Pins show reported items across Sri Lanka. Search a place or enable location to center the map.",
+    placeSearchPlaceholder: "Search a city or area…",
+    placeSearchButton: "Go",
+    placeSearchFailed: "Place not found. Try another search.",
     legendLost: "Lost",
     legendFound: "Found",
     foundItem: "Found item",
-    foundPrivacy: "Details unlock after you are matched.",
+    foundPrivacy: "Full details unlock after you are matched.",
     viewPost: "View post",
     noPins: "No mappable posts yet.",
   },
@@ -241,6 +245,8 @@ export const COPY = {
   post: {
     aiLabel: "AI Analysis:",
     viewMatches: "View Matches",
+    openChat: "Message matched user",
+    signInToChat: "Sign in to chat with the matched party",
     notFound: "Post not found",
     noImage: "No photo — description-only report",
     processing: "Analyzing your report…",

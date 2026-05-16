@@ -82,6 +82,47 @@ export const getPostById = query({
   },
 });
 
+export const searchPosts = query({
+  args: {
+    query: v.string(),
+    type: v.optional(v.union(v.literal("lost"), v.literal("found"))),
+  },
+  handler: async (ctx, { query, type }) => {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+
+    const tokens = q.split(/\s+/).filter(Boolean);
+    const rows = await ctx.db.query("posts").order("desc").take(200);
+
+    return rows
+      .filter(isPublicPost)
+      .filter((p) => !type || p.type === type)
+      .filter((p) => {
+        const hay = [
+          p.title,
+          p.description,
+          p.location,
+          p.aiDescription ?? "",
+          p.userName,
+        ]
+          .join(" ")
+          .toLowerCase();
+        return tokens.every((token) => hay.includes(token));
+      })
+      .slice(0, 24)
+      .map((p) => ({
+        _id: p._id,
+        type: p.type,
+        title: p.title,
+        location: p.location,
+        createdAt: p.createdAt,
+        imageUrl: p.imageUrl,
+        matched: p.matched,
+        userName: p.userName,
+      }));
+  },
+});
+
 export const getMyPosts = query({
   args: {},
   handler: async (ctx) => {
