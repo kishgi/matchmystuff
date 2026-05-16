@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useQuery } from "convex/react";
+import { useAction, useQuery } from "convex/react";
 import { motion, AnimatePresence } from "framer-motion";
 import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import { FloatingAssets } from "@/components/FloatingAssets";
 import { StatsBar } from "@/components/StatsBar";
 import { Logo } from "@/components/Logo";
@@ -29,17 +30,56 @@ const stepIcons = [
 
 type FeedTab = "lost" | "found";
 
+type SearchHit = {
+  _id: Id<"posts">;
+  type: "lost" | "found";
+  title: string;
+  location: string;
+  createdAt: number;
+  imageUrl: string;
+  matched: boolean;
+  userName: string;
+};
+
 export default function HomePage() {
   const posts = useQuery(api.posts.getPosts, {});
+  const semanticSearch = useAction(api.actions.semanticSearchPosts);
   const [tab, setTab] = useState<FeedTab>("lost");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchHit[] | null>(null);
+  const [searching, setSearching] = useState(false);
+
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (!q) {
+      setSearchResults(null);
+      setSearching(false);
+      return;
+    }
+    setSearching(true);
+    const timer = setTimeout(() => {
+      void semanticSearch({ query: q, type: tab, limit: 24 })
+        .then((results) => setSearchResults(results))
+        .catch(() => setSearchResults([]))
+        .finally(() => setSearching(false));
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchQuery, tab, semanticSearch]);
 
   const filtered = useMemo(() => {
+    const q = searchQuery.trim();
+    if (q) {
+      return searchResults ?? [];
+    }
     if (!posts) return [];
     return [...posts]
       .filter((p) => p.type === tab)
       .sort((a, b) => b.createdAt - a.createdAt)
       .slice(0, 6);
-  }, [posts, tab]);
+  }, [posts, tab, searchQuery, searchResults]);
+
+  const isSearchActive = searchQuery.trim().length > 0;
+  const feedLoading = isSearchActive ? searching : posts === undefined;
 
   return (
     <>
@@ -169,6 +209,16 @@ export default function HomePage() {
         <h2 className="mb-10" style={{ color: C.teal }}>
           {COPY.feed.title}
         </h2>
+        <div className="mb-6">
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={COPY.feed.searchPlaceholder}
+            className="input-field w-full max-w-xl"
+            aria-label={COPY.feed.searchPlaceholder}
+          />
+        </div>
         <div className="mb-10 flex gap-8">
           <button
             type="button"
@@ -187,9 +237,19 @@ export default function HomePage() {
             {COPY.feed.foundTab}
           </button>
         </div>
+        {isSearchActive && searching && (
+          <p className="mb-4 text-sm" style={{ color: C.slate }}>
+            {COPY.feed.searchLoading}
+          </p>
+        )}
+        {isSearchActive && !searching && filtered.length === 0 && (
+          <p className="mb-4 text-sm" style={{ color: C.slate }}>
+            {COPY.feed.searchEmpty}
+          </p>
+        )}
         <motion.div layout className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-          <AnimatePresence mode="popLayout" key={tab}>
-            {posts === undefined
+          <AnimatePresence mode="popLayout" key={`${tab}-${searchQuery}`}>
+            {feedLoading
               ? Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="aspect-square" />)
               : filtered.map((post) => (
                   <motion.div key={post._id} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>

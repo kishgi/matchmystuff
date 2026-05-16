@@ -87,6 +87,9 @@ export const COPY = {
     title: "Recently Reported",
     lostTab: "Lost",
     foundTab: "Found",
+    searchPlaceholder: "Search by meaning — e.g. pink sports shoe, black wallet…",
+    searchLoading: "Searching…",
+    searchEmpty: "No matching posts found. Try different words.",
   },
   cta: {
     headline: "Ready to make a difference?",
@@ -146,6 +149,8 @@ export const COPY = {
     titleMin: "Title must be at least 3 characters",
     descriptionMin: "Description must be at least 10 characters",
     imageRequired: "Please add and confirm a photo, or switch to describe-only mode",
+    validatingImage: "Validating image…",
+    imageInvalid: "Please upload a clear photo of the lost or found item.",
     editorTitle: "Adjust your photo",
     editorHint: "Drag to reposition, rotate, or zoom. The square frame is what we upload.",
     rotateLeft: "Rotate left",
