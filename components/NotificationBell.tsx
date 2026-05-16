@@ -8,6 +8,7 @@ import { api } from "@/convex/_generated/api";
 import { C } from "@/lib/colors";
 import { COPY } from "@/lib/copy";
 import { timeAgo } from "@/lib/time";
+import { toastError, toastSuccess } from "@/lib/toast";
 
 export function NotificationBell() {
   const unreadCount = useQuery(api.notifications.getUnreadCount);
@@ -31,7 +32,7 @@ export function NotificationBell() {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="relative rounded-full p-2 transition-colors hover:bg-gray-50"
+        className="relative rounded-full p-2.5 transition-colors hover:bg-gray-100"
         aria-label={COPY.notifications.title}
       >
         <svg className="h-6 w-6" style={{ color: C.slate }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -53,7 +54,7 @@ export function NotificationBell() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="absolute right-0 z-50 mt-2 w-80 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-lg"
+            className="absolute right-0 z-50 mt-2 w-80 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-xl"
           >
             <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
               <span className="text-sm font-semibold" style={{ color: C.teal }}>
@@ -62,7 +63,11 @@ export function NotificationBell() {
               {count > 0 && (
                 <button
                   type="button"
-                  onClick={() => void markAllRead()}
+                  onClick={() => {
+                    void markAllRead()
+                      .then(() => toastSuccess(COPY.toast.markAllReadSuccess))
+                      .catch(() => toastError(COPY.toast.markAllReadError));
+                  }}
                   className="text-xs font-medium hover:underline"
                   style={{ color: C.sky }}
                 >

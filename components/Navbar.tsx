@@ -29,19 +29,19 @@ export function Navbar() {
 
   return (
     <header
-      className={`sticky top-0 z-40 border-b border-gray-100 bg-white/90 backdrop-blur transition-shadow duration-200 ${scrolled ? "shadow-sm" : ""}`}
+      className={`sticky top-0 z-40 border-b border-gray-100 bg-white/90 backdrop-blur-md transition-shadow duration-300 ${scrolled ? "shadow-md" : ""}`}
     >
-      <nav className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
-        <Link href="/" className="shrink-0">
-          <Logo height={32} />
+      <nav className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 md:px-6">
+        <Link href="/" className="shrink-0 transition-opacity hover:opacity-85">
+          <Logo height={68} />
         </Link>
 
-        <ul className="hidden items-center gap-8 md:flex">
+        <ul className="hidden items-center gap-10 md:flex">
           {navLinks.map((link) => (
             <li key={link.href}>
               <Link
                 href={link.href}
-                className="text-sm font-medium transition-colors hover:underline"
+                className="text-base font-medium transition-all hover:underline hover:underline-offset-4"
                 style={{ color: link.color }}
               >
                 {link.label}
@@ -50,12 +50,12 @@ export function Navbar() {
           ))}
         </ul>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           {isAuthenticated && <NotificationBell />}
           {!isLoading && !isAuthenticated && (
             <Link
               href="/auth"
-              className="hidden rounded-full px-4 py-2 text-sm font-medium text-white md:inline-block"
+              className="btn-primary hidden !px-6 !py-2.5 md:inline-flex"
               style={{ backgroundColor: C.teal }}
             >
               {COPY.nav.signIn}
@@ -64,11 +64,11 @@ export function Navbar() {
           {!isLoading && isAuthenticated && <UserMenu />}
           <button
             type="button"
-            className="rounded-lg p-2 md:hidden"
+            className="rounded-xl p-2.5 transition-colors hover:bg-gray-100 md:hidden"
             onClick={() => setMenuOpen((v) => !v)}
             aria-label="Menu"
           >
-            <svg className="h-6 w-6" style={{ color: C.slate }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <svg className="h-7 w-7" style={{ color: C.slate }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               {menuOpen ? (
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               ) : (
@@ -80,14 +80,14 @@ export function Navbar() {
       </nav>
 
       {menuOpen && (
-        <div className="border-t border-gray-100 px-4 py-4 md:hidden">
-          <ul className="flex flex-col gap-3">
+        <div className="border-t border-gray-100 px-4 py-5 md:hidden">
+          <ul className="flex flex-col gap-4">
             {navLinks.map((link) => (
               <li key={link.href}>
                 <Link
                   href={link.href}
                   onClick={() => setMenuOpen(false)}
-                  className="block text-sm font-medium hover:underline"
+                  className="block text-base font-medium transition-colors hover:underline"
                   style={{ color: link.color }}
                 >
                   {link.label}
@@ -99,7 +99,7 @@ export function Navbar() {
                 <Link
                   href="/auth"
                   onClick={() => setMenuOpen(false)}
-                  className="inline-block rounded-full px-4 py-2 text-sm font-medium text-white"
+                  className="btn-primary inline-flex !px-6 !py-2.5"
                   style={{ backgroundColor: C.teal }}
                 >
                   {COPY.nav.signIn}

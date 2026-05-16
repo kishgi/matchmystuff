@@ -1,14 +1,15 @@
 import type { Metadata } from "next";
-import { Geist } from "next/font/google";
+import { Space_Grotesk } from "next/font/google";
 import { ConvexAuthNextjsServerProvider } from "@convex-dev/auth/nextjs/server";
+import { AppShell } from "@/components/AppShell";
 import { ConvexClientProvider } from "@/components/ConvexClientProvider";
-import { Footer } from "@/components/Footer";
-import { Navbar } from "@/components/Navbar";
+import { Toaster } from "@/components/Toaster";
 import "./globals.css";
 
-const geist = Geist({
-  variable: "--font-geist-sans",
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-space-grotesk",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
 });
 
 export const metadata: Metadata = {
@@ -16,19 +17,18 @@ export const metadata: Metadata = {
   description: "AI-powered lost and found platform",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
     <ConvexAuthNextjsServerProvider>
-      <html lang="en" className={`${geist.variable} h-full antialiased`}>
+      <html lang="en" className={`${spaceGrotesk.variable} h-full`}>
         <body className="flex min-h-full flex-col font-sans">
           <ConvexClientProvider>
-            <Navbar />
-            <main className="flex-1">{children}</main>
-            <Footer />
+            <AppShell>{children}</AppShell>
+            <Toaster />
           </ConvexClientProvider>
         </body>
       </html>
