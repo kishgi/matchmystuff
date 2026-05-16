@@ -98,15 +98,7 @@ export const searchPosts = query({
       .filter(isPublicPost)
       .filter((p) => !type || p.type === type)
       .filter((p) => {
-        const hay = [
-          p.title,
-          p.description,
-          p.location,
-          p.aiDescription ?? "",
-          p.userName,
-        ]
-          .join(" ")
-          .toLowerCase();
+        const hay = `${p.title} ${p.description}`.toLowerCase();
         return tokens.every((token) => hay.includes(token));
       })
       .slice(0, 24)

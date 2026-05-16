@@ -22,22 +22,7 @@ import {
 } from "./lib/similarity";
 
 const VISION_DESCRIBE_PROMPT = `
-You are describing items for a LOST & FOUND AI system.
-
-Write ONE clean paragraph (60–80 words).
-
-Rules:
-- Do NOT output single words or fragments (no "shoe. pink. footwear")
-- Do NOT use bullet points
-- Do NOT guess ownership or story
-- Only describe visible physical attributes
-- Be precise and structured in sentence form
-
-Include:
-object type, category, color, brand (if visible), material, condition, and distinguishing features.
-
-Style:
-Natural English sentence, optimized for semantic search embedding.
+"Describe this item for a lost and found system. Include object type, color, brand if visible, material, condition, and unique features. Max 80 words.";
 `;
 
 const TEXT_SUMMARY_PROMPT =
@@ -132,77 +117,6 @@ export const validateImage = action({
         valid: false,
         reason: IMAGE_VALIDATION_ERROR,
       };
-    }
-  },
-});
-
-type SearchPostResult = {
-  _id: Id<"posts">;
-  type: "lost" | "found";
-  title: string;
-  description: string;
-  location: string;
-  imageUrl: string;
-  userName: string;
-  matched: boolean;
-  createdAt: number;
-  score: number;
-};
-
-export const semanticSearchPosts = action({
-  args: {
-    query: v.string(),
-    type: v.optional(v.union(v.literal("lost"), v.literal("found"))),
-    limit: v.optional(v.number()),
-  },
-  handler: async (ctx, { query, type, limit = 24 }): Promise<SearchPostResult[]> => {
-    const trimmed = query.trim();
-    if (!trimmed) return [];
-
-    try {
-      const openai = getOpenAI();
-      const emb = await openai.embeddings.create({
-        model: "text-embedding-3-small",
-        input: trimmed,
-      });
-      const vector = emb.data[0].embedding;
-
-      const searchOpts = {
-        vector,
-        limit: Math.min(limit, 50),
-      };
-      const vectorResults = type
-        ? await ctx.vectorSearch("posts", "by_embedding", {
-            ...searchOpts,
-            filter: (q) => q.eq("type", type),
-          })
-        : await ctx.vectorSearch("posts", "by_embedding", searchOpts);
-
-      const results: SearchPostResult[] = [];
-      for (const hit of vectorResults) {
-        const post = await ctx.runQuery(internal.posts.getPostInternal, {
-          postId: hit._id,
-        });
-        if (!post) continue;
-        const status = post.processingStatus ?? "ready";
-        if (status !== "ready" || post.embedding.length === 0) continue;
-        results.push({
-          _id: post._id,
-          type: post.type,
-          title: post.title,
-          description: post.description,
-          location: post.location,
-          imageUrl: post.imageUrl,
-          userName: post.userName,
-          matched: post.matched,
-          createdAt: post.createdAt,
-          score: hit._score,
-        });
-      }
-      return results;
-    } catch (error) {
-      console.error("semanticSearchPosts error:", error);
-      return [];
     }
   },
 });
@@ -375,10 +289,10 @@ export const sendMatchEmail = internalAction({
     score: v.number(),
   },
   handler: async (ctx, { postAId, postBId, score }) => {
-    const gmailUser = process.env.GMAIL_USER;
-    const gmailPass = process.env.GMAIL_PASS;
+    const gmailUser = process.env.EMAIL_SENDER;
+    const gmailPass = process.env.EMAIL_PASS;
     if (!gmailUser || !gmailPass) {
-      console.warn("sendMatchEmail: GMAIL_USER or GMAIL_PASS not set, skipping");
+      console.warn("sendMatchEmail: EMAIL_SENDER or EMAIL_PASS not set, skipping");
       return;
     }
 

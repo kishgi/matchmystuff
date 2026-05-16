@@ -4,10 +4,9 @@ import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useConvexAuth } from "@convex-dev/auth/react";
-import { useAction, useQuery } from "convex/react";
+import { useQuery } from "convex/react";
 import { motion, AnimatePresence } from "framer-motion";
 import { api } from "@/convex/_generated/api";
-import type { Id } from "@/convex/_generated/dataModel";
 import { FloatingAssets } from "@/components/FloatingAssets";
 import { StatsBar } from "@/components/StatsBar";
 import { Logo } from "@/components/Logo";
@@ -23,7 +22,7 @@ const MapView = dynamic(
   {
     ssr: false,
     loading: () => (
-      <Skeleton className="h-[220px] w-full rounded-2xl md:h-[320px]" />
+      <Skeleton className="h-[260px] w-full rounded-2xl sm:h-[300px] md:h-[360px]" />
     ),
   },
 );
@@ -43,17 +42,6 @@ const stepIcons = [
 
 type FeedTab = "lost" | "found";
 
-type SearchHit = {
-  _id: Id<"posts">;
-  type: "lost" | "found";
-  title: string;
-  location: string;
-  createdAt: number;
-  imageUrl: string;
-  matched: boolean;
-  userName: string;
-};
-
 export default function HomePage() {
   const { isAuthenticated } = useConvexAuth();
   const posts = useQuery(api.posts.getPosts, {});
@@ -62,12 +50,9 @@ export default function HomePage() {
     api.matches.getMatchesForUser,
     isAuthenticated ? {} : "skip",
   );
-  const semanticSearch = useAction(api.actions.semanticSearchPosts);
   const [tab, setTab] = useState<FeedTab>("lost");
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
-  const [semanticResults, setSemanticResults] = useState<SearchHit[] | null>(null);
-  const [semanticSearching, setSemanticSearching] = useState(false);
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(
     null,
   );
@@ -112,33 +97,10 @@ export default function HomePage() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  const localResults = useQuery(
+  const searchResults = useQuery(
     api.posts.searchPosts,
     debouncedQuery ? { query: debouncedQuery, type: tab } : "skip",
   );
-
-  useEffect(() => {
-    if (!debouncedQuery) {
-      setSemanticResults(null);
-      setSemanticSearching(false);
-      return;
-    }
-    setSemanticSearching(true);
-    let cancelled = false;
-    void semanticSearch({ query: debouncedQuery, type: tab, limit: 24 })
-      .then((results) => {
-        if (!cancelled) setSemanticResults(results);
-      })
-      .catch(() => {
-        if (!cancelled) setSemanticResults([]);
-      })
-      .finally(() => {
-        if (!cancelled) setSemanticSearching(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [debouncedQuery, tab, semanticSearch]);
 
   const filtered = useMemo(() => {
     if (!debouncedQuery) {
@@ -148,43 +110,34 @@ export default function HomePage() {
         .sort((a, b) => b.createdAt - a.createdAt)
         .slice(0, 6);
     }
-
-    const byId = new Map<string, SearchHit>();
-    for (const hit of semanticResults ?? []) {
-      byId.set(hit._id, hit);
-    }
-    for (const hit of localResults ?? []) {
-      if (!byId.has(hit._id)) {
-        byId.set(hit._id, hit);
-      }
-    }
-    return Array.from(byId.values()).sort((a, b) => b.createdAt - a.createdAt);
-  }, [posts, tab, debouncedQuery, semanticResults, localResults]);
+    return searchResults ?? [];
+  }, [posts, tab, debouncedQuery, searchResults]);
 
   const isSearchActive = debouncedQuery.length > 0;
   const feedLoading = isSearchActive
-    ? semanticSearching || localResults === undefined
+    ? searchResults === undefined
     : posts === undefined;
 
   return (
     <>
-      <section className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-4 py-28 md:py-32">
+      <section className="relative flex min-h-[85dvh] flex-col items-center justify-center overflow-hidden px-4 py-20 sm:min-h-screen sm:py-24 md:py-32">
         <FloatingAssets />
         <motion.div
-          className="relative z-10 mx-auto max-w-4xl text-center"
+          className="relative z-10 mx-auto w-full max-w-4xl px-2 text-center sm:px-4"
           initial={fadeInUp.initial}
           animate={fadeInUp.animate}
           transition={fadeInUp.transition}
         >
-          <div className="mb-8 flex justify-center">
-            <Logo height={64} priority />
+          <div className="mb-6 flex justify-center sm:mb-8">
+            <Logo height={48} priority className="sm:hidden" />
+            <Logo height={64} priority className="hidden sm:block" />
           </div>
-          <h1 className="text-5xl font-bold tracking-tight md:text-6xl lg:text-7xl">
+          <h1 className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl">
             <span style={{ color: C.coral }}>{COPY.hero.line1}</span>
             <br />
             <span style={{ color: C.teal }}>{COPY.hero.line2}</span>
           </h1>
-          <p className="mx-auto mt-8 max-w-2xl text-lg leading-relaxed md:text-xl" style={{ color: C.slate }}>
+          <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed sm:mt-8 sm:text-lg md:text-xl" style={{ color: C.slate }}>
             {COPY.hero.subtext}
           </p>
           <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed md:text-lg" style={{ color: C.slate, opacity: 0.9 }}>
@@ -199,10 +152,10 @@ export default function HomePage() {
             animate={fadeInUp.animate}
             transition={{ ...fadeInUp.transition, delay: 0.15 }}
           >
-            <Link href="/report/lost" className="btn-primary" style={{ backgroundColor: C.coral }}>
+            <Link href="/report/lost" className="btn-primary w-full max-w-xs sm:w-auto" style={{ backgroundColor: C.coral }}>
               {COPY.hero.lostCta}
             </Link>
-            <Link href="/report/found" className="btn-primary" style={{ backgroundColor: C.sky }}>
+            <Link href="/report/found" className="btn-primary w-full max-w-xs sm:w-auto" style={{ backgroundColor: C.sky }}>
               {COPY.hero.foundCta}
             </Link>
           </motion.div>
@@ -302,33 +255,33 @@ export default function HomePage() {
             currentUserId={(user?._id as string | undefined) ?? null}
           />
         </div>
-        <div className="mb-6">
+        <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex gap-6 sm:gap-8">
+            <button
+              type="button"
+              onClick={() => setTab("lost")}
+              className={`pb-2 text-base font-semibold transition-all ${tab === "lost" ? "border-b-2" : "opacity-50 hover:opacity-80"}`}
+              style={{ color: C.coral, borderColor: tab === "lost" ? C.coral : "transparent" }}
+            >
+              {COPY.feed.lostTab}
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab("found")}
+              className={`pb-2 text-base font-semibold transition-all ${tab === "found" ? "border-b-2" : "opacity-50 hover:opacity-80"}`}
+              style={{ color: C.sky, borderColor: tab === "found" ? C.sky : "transparent" }}
+            >
+              {COPY.feed.foundTab}
+            </button>
+          </div>
           <input
             type="search"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={COPY.feed.searchPlaceholder}
-            className="input-field w-full max-w-xl"
+            className="input-field w-full sm:max-w-xs md:max-w-sm sm:ml-auto"
             aria-label={COPY.feed.searchPlaceholder}
           />
-        </div>
-        <div className="mb-10 flex gap-8">
-          <button
-            type="button"
-            onClick={() => setTab("lost")}
-            className={`pb-2 rounded-none text-base font-semibold transition-all ${tab === "lost" ? "border-b-2" : "opacity-50 hover:opacity-80"}`}
-            style={{ color: C.coral, borderColor: tab === "lost" ? C.coral : "transparent" }}
-          >
-            {COPY.feed.lostTab}
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab("found")}
-            className={`pb-2 rounded-none text-base font-semibold transition-all ${tab === "found" ? "border-b-2" : "opacity-50 hover:opacity-80"}`}
-            style={{ color: C.sky, borderColor: tab === "found" ? C.sky : "transparent" }}
-          >
-            {COPY.feed.foundTab}
-          </button>
         </div>
         {isSearchActive && feedLoading && (
           <p className="mb-4 text-sm" style={{ color: C.slate }}>
@@ -362,7 +315,7 @@ export default function HomePage() {
         </motion.div>
       </section>
 
-      <section className="mx-4 my-16 rounded-3xl p-12 text-center md:mx-6 md:p-16 lg:mx-8" style={{ backgroundColor: C.teal }}>
+      <section className="mx-4 my-12 rounded-2xl p-8 text-center sm:my-16 sm:rounded-3xl sm:p-10 md:mx-6 md:p-16 lg:mx-8" style={{ backgroundColor: C.teal }}>
         <h2 className="text-white">{COPY.cta.headline}</h2>
         <p className="mt-4 text-lg md:text-xl" style={{ color: C.sky }}>
           {COPY.cta.subtext}
