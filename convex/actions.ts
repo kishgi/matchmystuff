@@ -21,8 +21,24 @@ import {
   cosineSimilarity,
 } from "./lib/similarity";
 
-const VISION_DESCRIBE_PROMPT =
-  "Describe this item for a lost and found system. Include object type, color, brand if visible, material, condition, and unique features. Max 80 words.";
+const VISION_DESCRIBE_PROMPT = `
+You are describing items for a LOST & FOUND AI system.
+
+Write ONE clean paragraph (60–80 words).
+
+Rules:
+- Do NOT output single words or fragments (no "shoe. pink. footwear")
+- Do NOT use bullet points
+- Do NOT guess ownership or story
+- Only describe visible physical attributes
+- Be precise and structured in sentence form
+
+Include:
+object type, category, color, brand (if visible), material, condition, and distinguishing features.
+
+Style:
+Natural English sentence, optimized for semantic search embedding.
+`;
 
 const TEXT_SUMMARY_PROMPT =
   "Summarize this lost/found item in 2-3 sentences for matching. Focus on physical attributes, brand, color, and distinguishing features. Max 80 words.";
