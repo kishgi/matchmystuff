@@ -49,6 +49,8 @@ export default function MyPostsPage() {
               imageUrl={post.imageUrl}
               matched={post.matched}
               userName={post.userName}
+              processingStatus={post.processingStatus}
+              rejectionReason={post.rejectionReason}
             />
           ))}
         </div>

@@ -1,45 +1,44 @@
-Before implementing, scan the full codebase to understand current messaging/notification implementation, Convex schema, and navbar structure. Do NOT break existing functionality.
+Scan the full codebase first — understand the existing post creation flow, 
+Convex actions/mutations, schema, and frontend upload components before making any changes.
 
-Task: redesign messaging UI/UX.
+Then implement these 3 features:
 
-Goal:
-Move messaging from navbar text/link into a persistent bottom-right chat icon across all pages.
+---
 
-UI changes:
+1. IMAGE VALIDATION
+Before processing any uploaded image, validate it via GPT-4o vision.
+Reject if: human face/body visible, meme, screenshot, document, NSFW, 
+abstract art, or no identifiable real-world physical object (bag, phone, 
+wallet, keys, clothing, etc).
+Return JSON { valid: boolean, reason?: string }.
+If invalid — store the rejection reason on the post record and stop processing.
+Surface the rejection reason to the user on the frontend clearly.
+Reuse whatever OpenAI client instance already exists in the codebase.
 
-* Remove current "Messages" from navbar (or hide it)
-* Add floating chat icon (bottom-right, fixed position)
-* Icon visible on all authenticated pages
-* Use existing brand styling (no new design system)
+---
 
-On click:
+2. IMAGE EDIT BEFORE UPLOAD
+After a user selects an image but before they submit the form, show an 
+inline editor with: crop and rotate (left/right).
+User confirms the edit, then the edited version is what gets uploaded.
+Plug into whatever upload flow and storage pattern already exists.
 
-* Open a small chat popup/modal (not full page)
-* Right-side or bottom-right chat drawer style
-* Should show:
+---
 
-  1. list of matched users / chats
-  2. click chat opens conversation view inside same popup
-* include basic close button
+3. NO-IMAGE MATCHING (description-only path)
+Make image optional. If no image is provided, still generate an embedding 
+from title + description + location and run the full matching pipeline.
+On the frontend, offer two clear modes on the post creation form:
+  - "I have a photo" (existing flow + image editor from above)
+  - "Describe it instead" (title, description, location only — with a hint 
+    to be as detailed as possible for better matches)
+Do not change the match threshold — text-only posts will naturally score 
+lower, which is acceptable.
 
-Functionality:
+---
 
-* MUST reuse existing matches/messaging data (Convex)
-* Do NOT rebuild backend unless necessary
-* Keep real-time updates if already supported
-* Ensure chat only between matched users
-
-Constraints:
-
-* No changes to auth, posts, AI, or matching logic
-* Only UI + minimal wiring changes
-* Keep implementation lightweight
-
-UX:
-
-* should feel like Messenger/WhatsApp mini widget
-* fast open/close
-* non-intrusive
-* always accessible
-
-First step: analyze current messaging implementation before coding.
+Rules:
+- Read existing files before editing. Do not duplicate logic that already exists.
+- Match the current code style, naming conventions, and patterns throughout.
+- Minimal schema changes — only add fields that are strictly necessary.
+- No new dependencies unless unavoidable; prefer what is already installed.

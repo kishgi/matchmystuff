@@ -5,15 +5,86 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { internalAction } from "./_generated/server";
 import {
+  IMAGE_VALIDATION_PROMPT,
+  parseValidationResponse,
+} from "./lib/imageValidation";
+import {
   calculateLocationScore,
   cosineSimilarity,
 } from "./lib/similarity";
 
-const VISION_PROMPT =
+const VISION_DESCRIBE_PROMPT =
   "Describe this item for a lost and found system. Include object type, color, brand if visible, material, condition, and unique features. Max 80 words.";
+
+const TEXT_SUMMARY_PROMPT =
+  "Summarize this lost/found item in 2-3 sentences for matching. Focus on physical attributes, brand, color, and distinguishing features. Max 80 words.";
 
 const MATCH_THRESHOLD = 0.82;
 const TOP_N = 5;
+
+function getOpenAI() {
+  return new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+}
+
+async function validateImage(imageUrl: string): Promise<{
+  valid: boolean;
+  reason?: string;
+}> {
+  const openai = getOpenAI();
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o",
+    response_format: { type: "json_object" },
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: IMAGE_VALIDATION_PROMPT },
+          { type: "image_url", image_url: { url: imageUrl } },
+        ],
+      },
+    ],
+    max_tokens: 150,
+  });
+  const raw = response.choices[0]?.message?.content?.trim() ?? "";
+  return parseValidationResponse(raw);
+}
+
+async function describeImage(imageUrl: string): Promise<string> {
+  const openai = getOpenAI();
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: VISION_DESCRIBE_PROMPT },
+          { type: "image_url", image_url: { url: imageUrl } },
+        ],
+      },
+    ],
+    max_tokens: 200,
+  });
+  return response.choices[0]?.message?.content?.trim() ?? "";
+}
+
+async function summarizeText(
+  title: string,
+  description: string,
+  location: string,
+): Promise<string> {
+  const openai = getOpenAI();
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [
+      {
+        role: "user",
+        content: `${TEXT_SUMMARY_PROMPT}\n\nTitle: ${title}\nDescription: ${description}\nLocation: ${location}`,
+      },
+    ],
+    max_tokens: 200,
+  });
+  return response.choices[0]?.message?.content?.trim() ?? "";
+}
 
 export const processPost = internalAction({
   args: { postId: v.id("posts") },
@@ -24,37 +95,75 @@ export const processPost = internalAction({
     if (!post || post.embedding.length > 0) {
       return;
     }
+    if (post.processingStatus === "rejected") {
+      return;
+    }
 
-    let aiDescription = post.aiDescription ?? "";
+    await ctx.runMutation(internal.posts.setProcessingStatus, {
+      id: postId,
+      status: "processing",
+    });
 
-    if (!aiDescription && post.imageUrl) {
+    const hasImage = Boolean(post.imageUrl?.trim());
+
+    if (hasImage) {
       try {
-        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-        const response = await openai.chat.completions.create({
-          model: "gpt-4o",
-          messages: [
-            {
-              role: "user",
-              content: [
-                { type: "text", text: VISION_PROMPT },
-                {
-                  type: "image_url",
-                  image_url: { url: post.imageUrl },
-                },
-              ],
-            },
-          ],
-          max_tokens: 200,
-        });
-        aiDescription = response.choices[0]?.message?.content?.trim() ?? "";
-        if (!aiDescription) return;
+        const validation = await validateImage(post.imageUrl);
+        if (!validation.valid) {
+          await ctx.runMutation(internal.posts.markRejected, {
+            id: postId,
+            reason:
+              validation.reason ??
+              "This image cannot be used for a lost and found listing.",
+          });
+          return;
+        }
       } catch (error) {
-        console.error("OpenAI Vision error:", error);
+        console.error("Image validation error:", error);
+        await ctx.runMutation(internal.posts.markRejected, {
+          id: postId,
+          reason: "We could not validate your image. Please try uploading again.",
+        });
         return;
       }
     }
 
-    if (!aiDescription) return;
+    let aiDescription = post.aiDescription ?? "";
+
+    try {
+      if (hasImage) {
+        aiDescription = await describeImage(post.imageUrl);
+      } else {
+        aiDescription = await summarizeText(
+          post.title,
+          post.description,
+          post.location,
+        );
+      }
+    } catch (error) {
+      console.error("OpenAI description error:", error);
+      if (!hasImage) {
+        aiDescription = [post.title, post.description, post.location]
+          .filter(Boolean)
+          .join(". ");
+      } else {
+        await ctx.runMutation(internal.posts.markRejected, {
+          id: postId,
+          reason: "We could not analyze your image. Please try another photo.",
+        });
+        return;
+      }
+    }
+
+    if (!aiDescription.trim()) {
+      if (hasImage) {
+        await ctx.runMutation(internal.posts.markRejected, {
+          id: postId,
+          reason: "We could not identify an item in this image.",
+        });
+      }
+      return;
+    }
 
     const combinedText = [
       post.title,
@@ -67,7 +176,7 @@ export const processPost = internalAction({
 
     let embedding: number[];
     try {
-      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      const openai = getOpenAI();
       const result = await openai.embeddings.create({
         model: "text-embedding-3-small",
         input: combinedText,

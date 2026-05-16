@@ -20,6 +20,8 @@ export type PostCardProps = {
   matched: boolean;
   userName: string;
   matchHref?: string;
+  processingStatus?: "pending" | "processing" | "ready" | "rejected";
+  rejectionReason?: string;
 };
 
 export function PostCard({
@@ -32,6 +34,7 @@ export function PostCard({
   matched,
   userName,
   matchHref = "/matches",
+  processingStatus,
 }: PostCardProps) {
   const accent = type === "lost" ? C.coral : C.sky;
   const badgeLabel = type === "lost" ? COPY.postCard.lost : COPY.postCard.found;
@@ -61,7 +64,27 @@ export function PostCard({
               className="object-cover transition-transform duration-300 group-hover:scale-105"
               sizes="(max-width: 768px) 100vw, 33vw"
             />
-          ) : null}
+          ) : (
+            <div
+              className="flex h-full items-center justify-center px-4 text-center text-sm font-medium"
+              style={{ color: C.slate }}
+            >
+              {COPY.postCard.noImage}
+            </div>
+          )}
+          {processingStatus && processingStatus !== "ready" && (
+            <span
+              className="absolute bottom-3 left-3 z-10 rounded-full px-3 py-1 text-xs font-semibold text-white"
+              style={{
+                backgroundColor:
+                  processingStatus === "rejected" ? C.coral : C.sky,
+              }}
+            >
+              {processingStatus === "rejected"
+                ? COPY.myPosts.statusRejected
+                : COPY.myPosts.statusPending}
+            </span>
+          )}
         </div>
         <h3 className="text-lg font-semibold" style={{ color: C.teal }}>
           {title}

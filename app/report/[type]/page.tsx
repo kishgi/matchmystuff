@@ -1,18 +1,20 @@
 "use client";
 
-import { DragEvent, FormEvent, use, useCallback, useState } from "react";
+import { DragEvent, FormEvent, use, useCallback, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "convex/react";
 import { motion, AnimatePresence } from "framer-motion";
 import { api } from "@/convex/_generated/api";
 import { FormInput, FormTextarea } from "@/components/FormInput";
+import { ImageEditor } from "@/components/ImageEditor";
 import { C } from "@/lib/colors";
 import { COPY } from "@/lib/copy";
 import { fadeIn } from "@/lib/motion";
 import { toastError, toastSuccess } from "@/lib/toast";
 
 type ReportType = "lost" | "found";
+type ReportMode = "photo" | "describe";
 
 export default function ReportPage({
   params,
@@ -25,18 +27,20 @@ export default function ReportPage({
   const heading = type === "lost" ? COPY.report.lostHeading : COPY.report.foundHeading;
 
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const user = useQuery(api.users.getCurrentUser);
   const generateUploadUrl = useMutation(api.storage.generateUploadUrl);
   const createPost = useMutation(api.posts.createPost);
 
+  const [mode, setMode] = useState<ReportMode>("photo");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [location, setLocation] = useState("");
   const [storageId, setStorageId] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [success, setSuccess] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [errors, setErrors] = useState<{
@@ -44,6 +48,19 @@ export default function ReportPage({
     description?: string;
     image?: string;
   }>({});
+
+  const clearImage = useCallback(() => {
+    setStorageId(null);
+    if (preview) URL.revokeObjectURL(preview);
+    setPreview(null);
+    setPendingFile(null);
+  }, [preview]);
+
+  const switchMode = (next: ReportMode) => {
+    setMode(next);
+    setErrors((e) => ({ ...e, image: undefined }));
+    if (next === "describe") clearImage();
+  };
 
   const uploadFile = useCallback(
     async (file: File) => {
@@ -73,7 +90,9 @@ export default function ReportPage({
           xhr.send(file);
         });
         setStorageId(storageIdResult);
+        if (preview) URL.revokeObjectURL(preview);
         setPreview(URL.createObjectURL(file));
+        setPendingFile(null);
         toastSuccess(COPY.toast.uploadSuccess);
       } catch {
         toastError(COPY.toast.uploadError);
@@ -82,14 +101,19 @@ export default function ReportPage({
         setUploadProgress(0);
       }
     },
-    [generateUploadUrl],
+    [generateUploadUrl, preview],
   );
+
+  const onFileSelected = (file: File) => {
+    if (!file.type.startsWith("image/")) return;
+    setPendingFile(file);
+  };
 
   const onDrop = (e: DragEvent) => {
     e.preventDefault();
     setDragOver(false);
     const file = e.dataTransfer.files[0];
-    if (file?.type.startsWith("image/")) void uploadFile(file);
+    if (file) onFileSelected(file);
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -97,22 +121,21 @@ export default function ReportPage({
     const nextErrors: typeof errors = {};
     if (title.trim().length < 3) nextErrors.title = COPY.report.titleMin;
     if (description.trim().length < 10) nextErrors.description = COPY.report.descriptionMin;
-    if (!storageId) nextErrors.image = COPY.report.imageRequired;
+    if (mode === "photo" && !storageId) nextErrors.image = COPY.report.imageRequired;
     setErrors(nextErrors);
-    if (Object.keys(nextErrors).length > 0 || !user || !storageId) return;
+    if (Object.keys(nextErrors).length > 0 || !user) return;
     setSubmitting(true);
     try {
-      await createPost({
+      const postId = await createPost({
         type,
         title,
         description,
         location,
-        imageStorageId: storageId,
+        ...(storageId ? { imageStorageId: storageId } : {}),
         userName: user.name ?? user.email ?? "Anonymous",
       });
-      setSuccess(true);
       toastSuccess(COPY.toast.reportSuccess);
-      setTimeout(() => router.push("/"), 2000);
+      router.push(`/post/${postId}`);
     } catch {
       toastError(COPY.toast.reportError);
     } finally {
@@ -120,128 +143,193 @@ export default function ReportPage({
     }
   };
 
+  const canSubmit =
+    !!user &&
+    !submitting &&
+    !uploading &&
+    !pendingFile &&
+    (mode === "describe" || !!storageId);
+
   return (
     <div className="page-container-narrow">
       <h1 className="mb-10" style={{ color: C.teal }}>
         {heading}
       </h1>
-      <AnimatePresence mode="wait">
-        {success ? (
-          <motion.p
-            key="success"
-            initial={fadeIn.initial}
-            animate={fadeIn.animate}
-            className="text-center text-xl font-medium"
-            style={{ color: C.teal }}
-          >
-            {COPY.report.success}
-          </motion.p>
-        ) : (
-          <motion.form
-            key="form"
-            onSubmit={handleSubmit}
-            exit={{ opacity: 0 }}
-            className="card-surface space-y-6 p-6 md:p-8"
-          >
-            <div>
-              <label className="mb-2 block text-base font-medium" style={{ color: C.slate }}>
-                {COPY.report.title}
-              </label>
-              <FormInput
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                required
-              />
-              {errors.title && (
-                <p className="mt-1 text-sm" style={{ color: C.coral }}>{errors.title}</p>
-              )}
-            </div>
-            <div>
-              <label className="mb-2 block text-base font-medium" style={{ color: C.slate }}>
-                {COPY.report.description}
-              </label>
-              <FormTextarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                required
-                rows={4}
-                className="resize-none"
-              />
-              {errors.description && (
-                <p className="mt-1 text-sm" style={{ color: C.coral }}>{errors.description}</p>
-              )}
-            </div>
-            <div>
-              <label className="mb-2 block text-base font-medium" style={{ color: C.slate }}>
-                {COPY.report.location}
-              </label>
-              <FormInput
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                required
-              />
-            </div>
-            <div
-              onDragOver={(e) => {
-                e.preventDefault();
-                setDragOver(true);
-              }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={onDrop}
-              className="relative flex min-h-[200px] cursor-pointer flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed p-6 transition-colors"
+      <form
+        onSubmit={handleSubmit}
+        className="card-surface space-y-6 p-6 md:p-8"
+      >
+        <div
+          className="flex gap-2 rounded-full bg-gray-100 p-1"
+          role="tablist"
+          aria-label="Report mode"
+        >
+          {(["photo", "describe"] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              role="tab"
+              aria-selected={mode === m}
+              onClick={() => switchMode(m)}
+              className="flex-1 rounded-full px-4 py-2.5 text-sm font-semibold transition-colors"
               style={{
-                borderColor: accent,
-                backgroundColor: dragOver ? `${accent}12` : "transparent",
+                backgroundColor: mode === m ? accent : "transparent",
+                color: mode === m ? "#fff" : C.slate,
               }}
             >
-              <input
-                type="file"
-                accept="image/*"
-                className="absolute inset-0 cursor-pointer opacity-0"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) void uploadFile(file);
+              {m === "photo" ? COPY.report.modePhoto : COPY.report.modeDescribe}
+            </button>
+          ))}
+        </div>
+
+        {mode === "describe" && (
+          <p
+            className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 text-sm leading-relaxed"
+            style={{ color: C.slate }}
+          >
+            {COPY.report.describeHint}
+          </p>
+        )}
+
+        <div>
+          <label className="mb-2 block text-base font-medium" style={{ color: C.slate }}>
+            {COPY.report.title}
+          </label>
+          <FormInput value={title} onChange={(e) => setTitle(e.target.value)} required />
+          {errors.title && (
+            <p className="mt-1 text-sm" style={{ color: C.coral }}>
+              {errors.title}
+            </p>
+          )}
+        </div>
+        <div>
+          <label className="mb-2 block text-base font-medium" style={{ color: C.slate }}>
+            {COPY.report.description}
+          </label>
+          <FormTextarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            required
+            rows={4}
+            className="resize-none"
+          />
+          {errors.description && (
+            <p className="mt-1 text-sm" style={{ color: C.coral }}>
+              {errors.description}
+            </p>
+          )}
+        </div>
+        <div>
+          <label className="mb-2 block text-base font-medium" style={{ color: C.slate }}>
+            {COPY.report.location}
+          </label>
+          <FormInput value={location} onChange={(e) => setLocation(e.target.value)} required />
+        </div>
+
+        <AnimatePresence mode="wait">
+          {mode === "photo" && pendingFile ? (
+            <motion.div
+              key="editor"
+              initial={fadeIn.initial}
+              animate={fadeIn.animate}
+              exit={{ opacity: 0 }}
+            >
+              <ImageEditor
+                file={pendingFile}
+                accentColor={accent}
+                onConfirm={(edited) => void uploadFile(edited)}
+                onCancel={() => {
+                  setPendingFile(null);
+                  if (fileInputRef.current) fileInputRef.current.value = "";
                 }}
               />
-              {uploading ? (
-                <div className="w-full max-w-xs space-y-2">
-                  <div className="h-2 overflow-hidden rounded-full bg-gray-100">
-                    <div
-                      className="h-full transition-all duration-200"
-                      style={{ width: `${uploadProgress}%`, backgroundColor: accent }}
-                    />
+            </motion.div>
+          ) : mode === "photo" ? (
+            <motion.div
+              key="upload"
+              initial={fadeIn.initial}
+              animate={fadeIn.animate}
+              exit={{ opacity: 0 }}
+            >
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragOver(true);
+                }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={onDrop}
+                className="relative flex min-h-[200px] cursor-pointer flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed p-6 transition-colors"
+                style={{
+                  borderColor: accent,
+                  backgroundColor: dragOver ? `${accent}12` : "transparent",
+                }}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="absolute inset-0 cursor-pointer opacity-0"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) onFileSelected(file);
+                  }}
+                />
+                {uploading ? (
+                  <div className="w-full max-w-xs space-y-2">
+                    <div className="h-2 overflow-hidden rounded-full bg-gray-100">
+                      <div
+                        className="h-full transition-all duration-200"
+                        style={{ width: `${uploadProgress}%`, backgroundColor: accent }}
+                      />
+                    </div>
+                    <p className="text-center text-sm" style={{ color: C.slate }}>
+                      {uploadProgress}%
+                    </p>
                   </div>
-                  <p className="text-center text-sm" style={{ color: C.slate }}>
-                    {uploadProgress}%
+                ) : preview ? (
+                  <div className="relative h-48 w-full overflow-hidden rounded-xl">
+                    <Image src={preview} alt="" fill className="object-contain" unoptimized />
+                  </div>
+                ) : (
+                  <p className="text-center text-base" style={{ color: C.slate }}>
+                    {COPY.report.uploadHint}
                   </p>
-                </div>
-              ) : preview ? (
-                <div className="relative h-48 w-full overflow-hidden rounded-xl">
-                  <Image src={preview} alt="" fill className="object-contain" unoptimized />
-                </div>
-              ) : (
-                <p className="text-center text-base" style={{ color: C.slate }}>
-                  {COPY.report.uploadHint}
+                )}
+              </div>
+              {preview && !uploading && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    clearImage();
+                    if (fileInputRef.current) fileInputRef.current.value = "";
+                  }}
+                  className="mt-3 text-sm font-medium underline"
+                  style={{ color: accent }}
+                >
+                  {COPY.report.changePhoto}
+                </button>
+              )}
+              {errors.image && (
+                <p className="mt-2 text-sm" style={{ color: C.coral }}>
+                  {errors.image}
                 </p>
               )}
-            </div>
-            {errors.image && (
-              <p className="text-sm" style={{ color: C.coral }}>{errors.image}</p>
-            )}
-            <button
-              type="submit"
-              disabled={submitting || !storageId || !user}
-              className="btn-primary flex w-full gap-2"
-              style={{ backgroundColor: accent }}
-            >
-              {submitting && (
-                <span className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-              )}
-              {COPY.report.submit}
-            </button>
-          </motion.form>
-        )}
-      </AnimatePresence>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
+
+        <button
+          type="submit"
+          disabled={!canSubmit}
+          className="btn-primary flex w-full gap-2 disabled:opacity-60"
+          style={{ backgroundColor: accent }}
+        >
+          {submitting && (
+            <span className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+          )}
+          {COPY.report.submit}
+        </button>
+      </form>
     </div>
   );
 }
