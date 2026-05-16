@@ -128,6 +128,43 @@ export const createMatch = internalMutation({
   },
 });
 
+export const getMatchForPost = query({
+  args: { postId: v.id("posts") },
+  handler: async (ctx, { postId }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return null;
+
+    const userIdStr = userId as string;
+    const post = await ctx.db.get(postId);
+    if (!post) return null;
+
+    const fromA = await ctx.db
+      .query("matches")
+      .withIndex("by_postA", (q) => q.eq("postA", postId))
+      .collect();
+    const fromB = await ctx.db
+      .query("matches")
+      .withIndex("by_postB", (q) => q.eq("postB", postId))
+      .collect();
+
+    for (const match of [...fromA, ...fromB]) {
+      const postA = await ctx.db.get(match.postA);
+      const postB = await ctx.db.get(match.postB);
+      if (!postA || !postB) continue;
+
+      const participates =
+        postA.userId === userIdStr || postB.userId === userIdStr;
+      if (!participates) continue;
+
+      return {
+        matchId: match._id,
+        isOwner: post.userId === userIdStr,
+      };
+    }
+    return null;
+  },
+});
+
 export const markMatchSeen = mutation({
   args: { matchId: v.id("matches") },
   handler: async (ctx, { matchId }) => {

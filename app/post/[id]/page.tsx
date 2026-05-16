@@ -3,9 +3,11 @@
 import { use, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useConvexAuth } from "@convex-dev/auth/react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { OpenChatButton } from "@/components/OpenChatButton";
 import { Skeleton } from "@/components/Skeleton";
 import { C } from "@/lib/colors";
 import { COPY } from "@/lib/copy";
@@ -70,7 +72,13 @@ export default function PostDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const post = useQuery(api.posts.getPostById, { id: id as Id<"posts"> });
+  const postId = id as Id<"posts">;
+  const { isAuthenticated } = useConvexAuth();
+  const post = useQuery(api.posts.getPostById, { id: postId });
+  const matchForPost = useQuery(
+    api.matches.getMatchForPost,
+    isAuthenticated ? { postId } : "skip",
+  );
 
   useEffect(() => {
     if (post === null) {
@@ -161,11 +169,25 @@ export default function PostDetailPage({
           </p>
         </section>
       )}
-      {post.matched && (
-        <Link href="/matches" className="btn-primary mt-10" style={{ backgroundColor: C.teal }}>
-          {COPY.post.viewMatches}
-        </Link>
-      )}
+      <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:flex-wrap">
+        {matchForPost && (
+          <OpenChatButton matchId={matchForPost.matchId} className="w-full sm:w-auto" />
+        )}
+        {post.matched && !isAuthenticated && (
+          <Link href="/auth" className="btn-primary w-full sm:w-auto" style={{ backgroundColor: C.teal }}>
+            {COPY.post.signInToChat}
+          </Link>
+        )}
+        {post.matched && isAuthenticated && (
+          <Link
+            href="/matches"
+            className={`rounded-full border-2 px-8 py-3 text-center text-base font-semibold transition-colors hover:bg-gray-50 w-full sm:w-auto ${matchForPost ? "" : "btn-primary border-0 text-white"}`}
+            style={matchForPost ? { borderColor: C.teal, color: C.teal } : { backgroundColor: C.teal }}
+          >
+            {COPY.post.viewMatches}
+          </Link>
+        )}
+      </div>
     </article>
   );
 }
