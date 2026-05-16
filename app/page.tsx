@@ -316,7 +316,7 @@ export default function HomePage() {
           <button
             type="button"
             onClick={() => setTab("lost")}
-            className={`pb-2 text-base font-semibold transition-all ${tab === "lost" ? "border-b-2" : "opacity-50 hover:opacity-80"}`}
+            className={`pb-2 rounded-none text-base font-semibold transition-all ${tab === "lost" ? "border-b-2" : "opacity-50 hover:opacity-80"}`}
             style={{ color: C.coral, borderColor: tab === "lost" ? C.coral : "transparent" }}
           >
             {COPY.feed.lostTab}
@@ -324,7 +324,7 @@ export default function HomePage() {
           <button
             type="button"
             onClick={() => setTab("found")}
-            className={`pb-2 text-base font-semibold transition-all ${tab === "found" ? "border-b-2" : "opacity-50 hover:opacity-80"}`}
+            className={`pb-2 rounded-none text-base font-semibold transition-all ${tab === "found" ? "border-b-2" : "opacity-50 hover:opacity-80"}`}
             style={{ color: C.sky, borderColor: tab === "found" ? C.sky : "transparent" }}
           >
             {COPY.feed.foundTab}
