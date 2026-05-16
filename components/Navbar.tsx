@@ -8,7 +8,6 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { C } from "@/lib/colors";
 import { COPY } from "@/lib/copy";
-import { Logo } from "@/components/Logo";
 import { NotificationBell } from "@/components/NotificationBell";
 import { UserMenu } from "@/components/UserMenu";
 
@@ -46,9 +45,10 @@ export function Navbar() {
     <header
       className={`sticky top-0 z-40 border-b border-gray-100 bg-white/90 backdrop-blur-md transition-shadow duration-300 ${scrolled ? "shadow-md" : ""}`}
     >
-      <nav className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 md:px-6">
+      <nav className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-2 py-4 md:px-6">
         <Link href="/" className="shrink-0 transition-opacity hover:opacity-85">
-          <Logo height={68} />
+          <span className="text-3xl font-bold text-[#1B5E78]">Match</span>
+          <span className="text-3xl font-bold text-black">MyStuff</span>
         </Link>
 
         <ul className="hidden items-center gap-10 md:flex">
