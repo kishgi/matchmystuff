@@ -160,7 +160,7 @@ function AuthPageContent() {
                     setTab(t);
                     setError(null);
                   }}
-                  className={`pb-3 text-sm transition-colors ${
+                  className={`rounded-none pb-3 text-sm transition-colors ${
                     tab === t
                       ? "border-b-2 border-[#1B5E78] font-semibold text-[#1B5E78]"
                       : "text-[#333F48] opacity-50"
