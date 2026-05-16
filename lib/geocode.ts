@@ -1,5 +1,5 @@
 const SRI_LANKA_CENTER = { lat: 7.8731, lng: 80.7718 };
-const NOMINATIM_DELAY_MS = 1100;
+const GEOCODE_DELAY_MS = 150;
 
 export { SRI_LANKA_CENTER };
 
@@ -9,25 +9,17 @@ export async function geocodeLocation(
   const q = location.trim();
   if (!q) return null;
   try {
-    const params = new URLSearchParams({
-      q: q.includes("Sri Lanka") ? q : `${q}, Sri Lanka`,
-      format: "json",
-      limit: "1",
-    });
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?${params}`,
-      {
-        headers: {
-          "Accept-Language": "en",
-          "User-Agent": "MatchMyStuff/1.0 (lost-and-found)",
-        },
-      },
-    );
+    const params = new URLSearchParams({ q });
+    const res = await fetch(`/api/geocode?${params.toString()}`);
     if (!res.ok) return null;
-    const data = (await res.json()) as { lat: string; lon: string }[];
-    const hit = data[0];
-    if (!hit) return null;
-    return { lat: parseFloat(hit.lat), lng: parseFloat(hit.lon) };
+    const data = (await res.json()) as {
+      lat: number | null;
+      lng: number | null;
+    };
+    if (data.lat == null || data.lng == null || Number.isNaN(data.lat)) {
+      return null;
+    }
+    return { lat: data.lat, lng: data.lng };
   } catch {
     return null;
   }
@@ -64,7 +56,7 @@ export async function geocodeLocationsBatch(
   const unique = [...new Set(locations.map((l) => l.trim()).filter(Boolean))];
   for (const loc of unique) {
     if (cache.has(loc)) continue;
-    await new Promise((r) => setTimeout(r, NOMINATIM_DELAY_MS));
+    await new Promise((r) => setTimeout(r, GEOCODE_DELAY_MS));
     const coords = await geocodeLocation(loc);
     cache.set(loc, coords);
     onProgress?.();

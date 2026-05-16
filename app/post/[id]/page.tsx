@@ -26,7 +26,7 @@ function StatusBanner({
   if (status === "rejected") {
     return (
       <div
-        className="mb-6 rounded-2xl border-2 px-5 py-4"
+        className="mb-6 rounded-2xl border-2 px-4 py-4 sm:px-5"
         style={{ borderColor: C.coral, backgroundColor: `${C.coral}12` }}
         role="alert"
       >
@@ -48,7 +48,7 @@ function StatusBanner({
   if (status === "pending" || status === "processing") {
     return (
       <div
-        className="mb-6 rounded-2xl border-2 px-5 py-4"
+        className="mb-6 rounded-2xl border-2 px-4 py-4 sm:px-5"
         style={{ borderColor: C.sky, backgroundColor: `${C.sky}12` }}
         role="status"
       >
@@ -98,7 +98,7 @@ export default function PostDetailPage({
 
   if (!post) {
     return (
-      <div className="page-container-narrow text-center text-lg" style={{ color: C.slate }}>
+      <div className="page-container-narrow text-center text-base sm:text-lg" style={{ color: C.slate }}>
         {COPY.post.notFound}
       </div>
     );
@@ -106,61 +106,67 @@ export default function PostDetailPage({
 
   const accent = post.type === "lost" ? C.coral : C.sky;
   const status = post.processingStatus as ProcessingStatus | undefined;
+  const authRedirect = `/auth?redirect=${encodeURIComponent(`/post/${postId}`)}`;
 
   return (
     <article className="page-container-narrow">
       <StatusBanner status={status} rejectionReason={post.rejectionReason} />
 
-      <div className="relative mb-8 aspect-square overflow-hidden rounded-2xl bg-gray-50 shadow-sm">
+      <div className="relative mb-6 aspect-square overflow-hidden rounded-2xl bg-gray-50 shadow-sm sm:mb-8">
         {post.imageUrl ? (
           <Image
             src={post.imageUrl}
             alt=""
             fill
             className="object-cover"
-            sizes="(max-width: 768px) 100vw, 672px"
+            sizes="(max-width: 640px) 100vw, 672px"
+            priority
           />
         ) : (
-          <div className="flex h-full flex-row items-center justify-center px-6 text-center">
-            <p className="text-lg font-medium" style={{ color: C.teal }}>
+          <div className="flex h-full items-center justify-center px-6 text-center">
+            <p className="text-base font-medium sm:text-lg" style={{ color: C.teal }}>
               {COPY.post.noImage}
             </p>
           </div>
         )}
       </div>
-      <div className="mb-5 flex flex-wrap items-center gap-3">
+      <div className="mb-4 flex flex-wrap items-center gap-2 sm:mb-5 sm:gap-3">
         <span
-          className="rounded-full px-4 py-1.5 text-sm font-semibold text-white"
+          className="rounded-full px-3 py-1 text-xs font-semibold text-white sm:px-4 sm:py-1.5 sm:text-sm"
           style={{ backgroundColor: accent }}
         >
           {post.type === "lost" ? COPY.postCard.lost : COPY.postCard.found}
         </span>
         {post.matched && (
-          <span className="rounded-full bg-green-500 px-4 py-1.5 text-sm font-semibold text-white">
+          <span className="rounded-full bg-green-500 px-3 py-1 text-xs font-semibold text-white sm:px-4 sm:py-1.5 sm:text-sm">
             {COPY.postCard.matched}
           </span>
         )}
         {status === "rejected" && (
           <span
-            className="rounded-full px-4 py-1.5 text-sm font-semibold text-white"
+            className="rounded-full px-3 py-1 text-xs font-semibold text-white sm:px-4 sm:py-1.5 sm:text-sm"
             style={{ backgroundColor: C.coral }}
           >
             {COPY.myPosts.statusRejected}
           </span>
         )}
       </div>
-      <h1 style={{ color: C.teal }}>{post.title}</h1>
-      <p className="mt-3 text-base" style={{ color: C.slate }}>
+      <h1 className="text-2xl sm:text-3xl md:text-4xl" style={{ color: C.teal }}>
+        {post.title}
+      </h1>
+      <p className="mt-2 text-sm sm:mt-3 sm:text-base" style={{ color: C.slate }}>
         {post.location} · {post.userName} · {timeAgo(post.createdAt)}
       </p>
-      <section className="card-surface mt-10">
-        <h2 className="mb-3 text-base font-semibold md:text-lg" style={{ color: C.teal }}>Description:</h2>
+      <section className="card-surface mt-8 sm:mt-10">
+        <h2 className="mb-3 text-base font-semibold md:text-lg" style={{ color: C.teal }}>
+          Description
+        </h2>
         <p className="text-base leading-relaxed md:text-lg" style={{ color: C.slate }}>
           {post.description}
         </p>
       </section>
       {post.aiDescription && (
-        <section className="card-surface mt-6">
+        <section className="card-surface mt-4 sm:mt-6">
           <h2 className="mb-3 text-base font-semibold md:text-lg" style={{ color: C.sky }}>
             {COPY.post.aiLabel}
           </h2>
@@ -169,25 +175,43 @@ export default function PostDetailPage({
           </p>
         </section>
       )}
-      <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:flex-wrap">
-        {matchForPost && (
-          <OpenChatButton matchId={matchForPost.matchId} className="w-full sm:w-auto" />
-        )}
-        {post.matched && !isAuthenticated && (
-          <Link href="/auth" className="btn-primary w-full sm:w-auto" style={{ backgroundColor: C.teal }}>
-            {COPY.post.signInToChat}
-          </Link>
-        )}
-        {post.matched && isAuthenticated && (
-          <Link
-            href="/matches"
-            className={`rounded-full border-2 px-8 py-3 text-center text-base font-semibold transition-colors hover:bg-gray-50 w-full sm:w-auto ${matchForPost ? "" : "btn-primary border-0 text-white"}`}
-            style={matchForPost ? { borderColor: C.teal, color: C.teal } : { backgroundColor: C.teal }}
-          >
-            {COPY.post.viewMatches}
-          </Link>
-        )}
-      </div>
+
+      {post.matched && (
+        <section className="mt-8 rounded-2xl border border-gray-100 bg-gray-50/80 p-5 sm:mt-10 sm:p-6">
+          <h2 className="mb-4 text-base font-semibold md:text-lg" style={{ color: C.teal }}>
+            {COPY.matches.openChat}
+          </h2>
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+            {isAuthenticated && matchForPost ? (
+              <OpenChatButton matchId={matchForPost.matchId} className="w-full sm:w-auto" />
+            ) : !isAuthenticated ? (
+              <Link
+                href={authRedirect}
+                className="btn-primary w-full text-center sm:w-auto"
+                style={{ backgroundColor: C.teal }}
+              >
+                {COPY.post.signInToChat}
+              </Link>
+            ) : (
+              <p className="text-sm leading-relaxed sm:text-base" style={{ color: C.slate }}>
+                {COPY.post.chatUnavailable}{" "}
+                <Link href="/matches" className="font-medium underline" style={{ color: C.teal }}>
+                  {COPY.post.viewMatches}
+                </Link>
+              </p>
+            )}
+            {isAuthenticated && (
+              <Link
+                href="/matches"
+                className={`btn-ghost w-full text-center sm:w-auto ${matchForPost ? "" : "border-transparent"}`}
+                style={matchForPost ? { borderColor: C.teal, color: C.teal } : { backgroundColor: C.teal, color: "#fff", borderColor: C.teal }}
+              >
+                {COPY.post.viewMatches}
+              </Link>
+            )}
+          </div>
+        </section>
+      )}
     </article>
   );
 }

@@ -31,32 +31,55 @@ export type MapPost = {
 
 type GeocodedPost = MapPost & { lat: number; lng: number };
 
-function MapRecenter({
-  center,
-  zoom,
-}: {
-  center: [number, number];
-  zoom: number;
-}) {
+function MapResizeFix() {
   const map = useMap();
   useEffect(() => {
-    map.flyTo(center, zoom, { duration: 0.6 });
-  }, [map, center, zoom]);
+    const fix = () => map.invalidateSize();
+    const t1 = setTimeout(fix, 0);
+    const t2 = setTimeout(fix, 250);
+    window.addEventListener("resize", fix);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      window.removeEventListener("resize", fix);
+    };
+  }, [map]);
+  return null;
+}
+
+function MapFlyTo({
+  target,
+  zoom,
+  token,
+}: {
+  target: [number, number] | null;
+  zoom: number;
+  token: number;
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!target) return;
+    map.flyTo(target, zoom, { duration: 0.6 });
+  }, [map, target, zoom, token]);
+
   return null;
 }
 
 function makePinIcon(post: MapPost) {
   const borderColor = post.type === "lost" ? C.coral : C.sky;
   const fallback = post.type === "lost" ? "🔍" : "📦";
+  const pinSize = 36;
+  const imgSize = 30;
   const inner = post.imageUrl
-    ? `<img src="${post.imageUrl}" alt="" width="16" height="16" style="display:block;width:16px;height:16px;object-fit:cover;" />`
-    : `<span style="font-size:12px;line-height:16px;display:block;text-align:center;">${fallback}</span>`;
+    ? `<img src="${post.imageUrl}" alt="" width="${imgSize}" height="${imgSize}" style="display:block;width:${imgSize}px;height:${imgSize}px;object-fit:cover;" />`
+    : `<span style="font-size:16px;line-height:${imgSize}px;display:block;text-align:center;">${fallback}</span>`;
   return L.divIcon({
     className: "",
-    html: `<div style="width:20px;height:20px;border-radius:4px;overflow:hidden;border:2px solid ${borderColor};background:#fff;box-shadow:0 1px 4px rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center;">${inner}</div>`,
-    iconSize: [20, 20],
-    iconAnchor: [10, 20],
-    popupAnchor: [0, -20],
+    html: `<div style="width:${pinSize}px;height:${pinSize}px;border-radius:6px;overflow:hidden;border:2px solid ${borderColor};background:#fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;">${inner}</div>`,
+    iconSize: [pinSize, pinSize],
+    iconAnchor: [pinSize / 2, pinSize],
+    popupAnchor: [0, -pinSize],
   });
 }
 
@@ -77,7 +100,9 @@ export function MapView({
   const [placeQuery, setPlaceQuery] = useState("");
   const [placeSearching, setPlaceSearching] = useState(false);
   const [placeError, setPlaceError] = useState<string | null>(null);
-  const [placeCenter, setPlaceCenter] = useState<[number, number] | null>(null);
+  const [flyTarget, setFlyTarget] = useState<[number, number] | null>(null);
+  const [flyZoom, setFlyZoom] = useState(7);
+  const [flyToken, setFlyToken] = useState(0);
 
   const postsWithLocation = useMemo(
     () => posts.filter((p) => p.location.trim().length > 0),
@@ -89,6 +114,7 @@ export function MapView({
     const run = async () => {
       if (postsWithLocation.length === 0) {
         setGeocoded([]);
+        setGeocoding(false);
         return;
       }
       setGeocoding(true);
@@ -121,8 +147,28 @@ export function MapView({
     };
   }, [postsWithLocation]);
 
-  const center = useMemo((): [number, number] => {
-    if (placeCenter) return placeCenter;
+  const userLocatedRef = useRef(false);
+  const placeSearchRef = useRef(false);
+
+  useEffect(() => {
+    if (placeSearchRef.current) return;
+    if (userCoords && !userLocatedRef.current) {
+      userLocatedRef.current = true;
+      setFlyTarget([userCoords.lat, userCoords.lng]);
+      setFlyZoom(9);
+      setFlyToken((t) => t + 1);
+      return;
+    }
+    if (!userCoords && geocoded.length > 0 && !flyTarget) {
+      const lat = geocoded.reduce((s, p) => s + p.lat, 0) / geocoded.length;
+      const lng = geocoded.reduce((s, p) => s + p.lng, 0) / geocoded.length;
+      setFlyTarget([lat, lng]);
+      setFlyZoom(8);
+      setFlyToken((t) => t + 1);
+    }
+  }, [userCoords, geocoded, flyTarget]);
+
+  const initialCenter = useMemo((): [number, number] => {
     if (userCoords) return [userCoords.lat, userCoords.lng];
     if (geocoded.length > 0) {
       const lat = geocoded.reduce((s, p) => s + p.lat, 0) / geocoded.length;
@@ -130,9 +176,9 @@ export function MapView({
       return [lat, lng];
     }
     return MAP_CENTER_DEFAULT;
-  }, [placeCenter, userCoords, geocoded]);
+  }, [userCoords, geocoded]);
 
-  const zoom = placeCenter ? 12 : userCoords ? 9 : geocoded.length > 0 ? 8 : 7;
+  const initialZoom = userCoords ? 9 : geocoded.length > 0 ? 8 : 7;
 
   const showLimited = (post: MapPost) =>
     post.type === "found" &&
@@ -151,7 +197,12 @@ export function MapView({
         setPlaceError(COPY.map.placeSearchFailed);
         return;
       }
-      setPlaceCenter([coords.lat, coords.lng]);
+      placeSearchRef.current = true;
+      setFlyTarget([coords.lat, coords.lng]);
+      setFlyZoom(12);
+      setFlyToken((t) => t + 1);
+    } catch {
+      setPlaceError(COPY.map.placeSearchFailed);
     } finally {
       setPlaceSearching(false);
     }
@@ -172,7 +223,7 @@ export function MapView({
         </p>
         <form
           onSubmit={(e) => void handlePlaceSearch(e)}
-          className="mt-3 flex gap-2"
+          className="mt-3 flex flex-col gap-2 sm:flex-row"
         >
           <input
             type="search"
@@ -188,7 +239,7 @@ export function MapView({
           <button
             type="submit"
             disabled={placeSearching || !placeQuery.trim()}
-            className="btn-primary shrink-0 px-4 py-2 text-sm disabled:opacity-60"
+            className="btn-primary w-full shrink-0 px-4 py-2 text-sm disabled:opacity-60 sm:w-auto"
             style={{ backgroundColor: C.teal }}
           >
             {placeSearching ? "…" : COPY.map.placeSearchButton}
@@ -200,18 +251,20 @@ export function MapView({
           </p>
         )}
       </div>
-      <div className="relative h-[220px] w-full md:h-[320px]" style={{ zIndex: 0 }}>
+      <div className="relative z-0 h-[260px] w-full sm:h-[300px] md:h-[360px] lg:h-[400px]">
         <MapContainer
-          center={center}
-          zoom={zoom}
-          className="h-full w-full"
-          scrollWheelZoom={false}
+          center={initialCenter}
+          zoom={initialZoom}
+          className="h-full w-full rounded-none"
+          scrollWheelZoom
+          style={{ height: "100%", width: "100%", minHeight: 260 }}
         >
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-          <MapRecenter center={center} zoom={zoom} />
+          <MapResizeFix />
+          <MapFlyTo target={flyTarget} zoom={flyZoom} token={flyToken} />
           {geocoded.map((post) => (
             <Marker
               key={post._id}
@@ -219,12 +272,12 @@ export function MapView({
               icon={makePinIcon(post)}
             >
               <Popup>
-                <div className="min-w-[160px] text-sm">
+                <div className="min-w-[200px] max-w-[240px] text-sm sm:min-w-[220px]">
                   {post.imageUrl ? (
                     <img
                       src={post.imageUrl}
                       alt=""
-                      className="mb-2 h-16 w-16 rounded-lg object-cover"
+                      className="mb-3 h-28 w-full rounded-lg object-cover sm:h-32"
                     />
                   ) : null}
                   <p className="font-semibold" style={{ color: C.teal }}>
@@ -270,7 +323,10 @@ export function MapView({
           />
           {COPY.map.legendFound}
         </span>
-        {!geocoding && geocoded.length === 0 && (
+        {!geocoding && geocoded.length === 0 && postsWithLocation.length > 0 && (
+          <span className="text-gray-500">{COPY.map.noPins}</span>
+        )}
+        {!geocoding && postsWithLocation.length === 0 && (
           <span className="text-gray-500">{COPY.map.noPins}</span>
         )}
       </div>

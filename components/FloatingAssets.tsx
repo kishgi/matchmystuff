@@ -28,7 +28,7 @@ const assets: AssetItem[] = [
 
 export function FloatingAssets({ className = "" }: { className?: string }) {
   return (
-    <div className={`pointer-events-none absolute inset-0 overflow-hidden ${className}`}>
+    <motion.div className={`pointer-events-none absolute inset-0 hidden overflow-hidden md:block ${className}`}>
       {assets.map((item, i) => (
         <motion.div
           key={i}
@@ -47,6 +47,6 @@ export function FloatingAssets({ className = "" }: { className?: string }) {
           />
         </motion.div>
       ))}
-    </div>
+    </motion.div>
   );
 }
