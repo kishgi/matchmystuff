@@ -12,40 +12,32 @@ export default function MyPostsPage() {
   const posts = useQuery(api.posts.getMyPosts);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-12">
-      <h1 className="mb-10 text-3xl font-bold" style={{ color: C.teal }}>
+    <div className="page-container">
+      <h1 className="mb-12" style={{ color: C.teal }}>
         {COPY.nav.myPosts}
       </h1>
       {posts === undefined ? (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
             <Skeleton key={i} className="aspect-square" />
           ))}
         </div>
       ) : posts.length === 0 ? (
-        <div className="flex flex-col items-center py-16 text-center">
-          <p className="mb-8 text-lg" style={{ color: C.slate }}>
+        <div className="flex flex-col items-center py-20 text-center">
+          <p className="mb-10 text-lg leading-relaxed md:text-xl" style={{ color: C.slate }}>
             {COPY.myPosts.empty}
           </p>
-          <div className="flex flex-col gap-4 sm:flex-row">
-            <Link
-              href="/report/lost"
-              className="rounded-full px-6 py-3 text-sm font-semibold text-white"
-              style={{ backgroundColor: C.coral }}
-            >
+          <div className="flex flex-col gap-4 sm:flex-row sm:gap-5">
+            <Link href="/report/lost" className="btn-primary" style={{ backgroundColor: C.coral }}>
               {COPY.myPosts.reportLost}
             </Link>
-            <Link
-              href="/report/found"
-              className="rounded-full px-6 py-3 text-sm font-semibold text-white"
-              style={{ backgroundColor: C.sky }}
-            >
+            <Link href="/report/found" className="btn-primary" style={{ backgroundColor: C.sky }}>
               {COPY.myPosts.reportFound}
             </Link>
           </div>
         </div>
       ) : (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
           {posts.map((post) => (
             <PostCard
               key={post._id}

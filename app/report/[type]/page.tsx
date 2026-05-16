@@ -9,6 +9,7 @@ import { api } from "@/convex/_generated/api";
 import { C } from "@/lib/colors";
 import { COPY } from "@/lib/copy";
 import { fadeIn } from "@/lib/motion";
+import { toastError, toastSuccess } from "@/lib/toast";
 
 type ReportType = "lost" | "found";
 
@@ -47,9 +48,13 @@ export default function ReportPage({
           headers: { "Content-Type": file.type },
           body: file,
         });
+        if (!result.ok) throw new Error(COPY.toast.uploadError);
         const json = (await result.json()) as { storageId: string };
         setStorageId(json.storageId);
         setPreview(URL.createObjectURL(file));
+        toastSuccess(COPY.toast.uploadSuccess);
+      } catch {
+        toastError(COPY.toast.uploadError);
       } finally {
         setUploading(false);
       }
@@ -78,15 +83,18 @@ export default function ReportPage({
         userName: user.name ?? user.email ?? "Anonymous",
       });
       setSuccess(true);
+      toastSuccess(COPY.toast.reportSuccess);
       setTimeout(() => router.push("/"), 2000);
+    } catch {
+      toastError(COPY.toast.reportError);
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <div className="mx-auto max-w-xl px-4 py-12">
-      <h1 className="mb-8 text-3xl font-bold" style={{ color: C.teal }}>
+    <div className="page-container-narrow">
+      <h1 className="mb-10" style={{ color: C.teal }}>
         {heading}
       </h1>
       <AnimatePresence mode="wait">
@@ -95,7 +103,7 @@ export default function ReportPage({
             key="success"
             initial={fadeIn.initial}
             animate={fadeIn.animate}
-            className="text-center text-lg font-medium"
+            className="text-center text-xl font-medium"
             style={{ color: C.teal }}
           >
             {COPY.report.success}
@@ -105,21 +113,21 @@ export default function ReportPage({
             key="form"
             onSubmit={handleSubmit}
             exit={{ opacity: 0 }}
-            className="space-y-5"
+            className="card-surface space-y-6 p-6 md:p-8"
           >
             <div>
-              <label className="mb-1 block text-sm font-medium" style={{ color: C.slate }}>
+              <label className="mb-2 block text-base font-medium" style={{ color: C.slate }}>
                 {COPY.report.title}
               </label>
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 required
-                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none"
+                className="input-field"
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium" style={{ color: C.slate }}>
+              <label className="mb-2 block text-base font-medium" style={{ color: C.slate }}>
                 {COPY.report.description}
               </label>
               <textarea
@@ -127,18 +135,18 @@ export default function ReportPage({
                 onChange={(e) => setDescription(e.target.value)}
                 required
                 rows={4}
-                className="w-full resize-none rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none"
+                className="input-field resize-none"
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium" style={{ color: C.slate }}>
+              <label className="mb-2 block text-base font-medium" style={{ color: C.slate }}>
                 {COPY.report.location}
               </label>
               <input
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
                 required
-                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none"
+                className="input-field"
               />
             </div>
             <div
@@ -148,10 +156,10 @@ export default function ReportPage({
               }}
               onDragLeave={() => setDragOver(false)}
               onDrop={onDrop}
-              className="relative flex min-h-[180px] cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed p-6 transition-colors"
+              className="relative flex min-h-[200px] cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed p-6 transition-colors"
               style={{
                 borderColor: accent,
-                backgroundColor: dragOver ? `${accent}10` : "transparent",
+                backgroundColor: dragOver ? `${accent}12` : "transparent",
               }}
             >
               <input
@@ -165,15 +173,15 @@ export default function ReportPage({
               />
               {uploading ? (
                 <div
-                  className="h-8 w-8 animate-spin rounded-full border-2 border-t-transparent"
+                  className="h-10 w-10 animate-spin rounded-full border-2 border-t-transparent"
                   style={{ borderColor: accent }}
                 />
               ) : preview ? (
-                <div className="relative h-40 w-full">
+                <div className="relative h-48 w-full">
                   <Image src={preview} alt="" fill className="rounded-xl object-contain" unoptimized />
                 </div>
               ) : (
-                <p className="text-center text-sm" style={{ color: C.slate }}>
+                <p className="text-center text-base" style={{ color: C.slate }}>
                   {COPY.report.uploadHint}
                 </p>
               )}
@@ -181,11 +189,11 @@ export default function ReportPage({
             <button
               type="submit"
               disabled={submitting || !storageId || !user}
-              className="flex w-full items-center justify-center gap-2 rounded-full py-3 text-sm font-semibold text-white disabled:opacity-60"
+              className="btn-primary flex w-full gap-2"
               style={{ backgroundColor: accent }}
             >
               {submitting && (
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                <span className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
               )}
               {COPY.report.submit}
             </button>

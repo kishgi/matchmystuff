@@ -5,7 +5,7 @@ type LogoProps = {
   className?: string;
 };
 
-export function Logo({ height = 32, className = "" }: LogoProps) {
+export function Logo({ height = 48, className = "" }: LogoProps) {
   return (
     <Image
       src="/logo.png"

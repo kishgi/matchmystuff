@@ -23,27 +23,27 @@ export default function MatchesPage() {
   }, [matches, markMatchSeen]);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-12">
-      <h1 className="mb-10 text-3xl font-bold" style={{ color: C.teal }}>
+    <div className="page-container">
+      <h1 className="mb-12" style={{ color: C.teal }}>
         {COPY.matches.title}
       </h1>
       {matches === undefined ? (
-        <div className="space-y-6">
-          <Skeleton className="h-64" />
-          <Skeleton className="h-64" />
+        <div className="space-y-8">
+          <Skeleton className="h-72" />
+          <Skeleton className="h-72" />
         </div>
       ) : matches.length === 0 ? (
-        <div className="flex flex-col items-center py-16 text-center">
+        <div className="flex flex-col items-center py-20 text-center">
           <div
-            className="mb-6 h-40 w-40 rounded-full opacity-20"
+            className="mb-8 h-44 w-44 rounded-full opacity-20"
             style={{ backgroundColor: C.sky }}
           />
-          <p className="max-w-md text-lg" style={{ color: C.slate }}>
+          <p className="max-w-md text-lg leading-relaxed md:text-xl" style={{ color: C.slate }}>
             {COPY.matches.empty}
           </p>
         </div>
       ) : (
-        <ul className="space-y-8">
+        <ul className="space-y-10">
           {matches.map((match, i) => {
             const contactEmail =
               match.postA.contactEmail || match.postB.contactEmail;
@@ -53,22 +53,22 @@ export default function MatchesPage() {
                 initial={fadeInUp.initial}
                 animate={fadeInUp.animate}
                 transition={{ ...fadeInUp.transition, delay: i * 0.08 }}
-                className="rounded-2xl border-2 p-4 md:p-6"
+                className="card-surface border-2 p-5 md:p-8"
                 style={{ borderColor: C.teal }}
               >
-                <div className="mb-4 flex items-center justify-between">
-                  <span className="rounded-full bg-green-500 px-3 py-1 text-sm font-semibold text-white">
+                <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+                  <span className="rounded-full bg-green-500 px-4 py-1.5 text-base font-semibold text-white">
                     {Math.round(match.score * 100)}% {COPY.matches.scoreLabel}
                   </span>
                   <Link
                     href={`/matches/${match._id}`}
-                    className="text-sm font-medium hover:underline"
+                    className="text-base font-medium transition-colors hover:underline hover:underline-offset-4"
                     style={{ color: C.teal }}
                   >
                     {COPY.postCard.viewMatch}
                   </Link>
                 </div>
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-6 md:grid-cols-2">
                   <PostCard
                     _id={match.postA._id}
                     type={match.postA.type}
@@ -95,7 +95,7 @@ export default function MatchesPage() {
                 {contactEmail && (
                   <a
                     href={`mailto:${contactEmail}`}
-                    className="mt-4 inline-block rounded-full px-6 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+                    className="btn-primary mt-6"
                     style={{ backgroundColor: C.teal }}
                   >
                     {COPY.matches.contact}

@@ -1,13 +1,14 @@
 "use client";
-
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuthActions } from "@convex-dev/auth/react";
+import { FloatingAssets } from "@/components/FloatingAssets";
 import { Logo } from "@/components/Logo";
 import { C } from "@/lib/colors";
 import { COPY } from "@/lib/copy";
 import { fadeIn } from "@/lib/motion";
+import { toastError, toastSuccess } from "@/lib/toast";
 
 type AuthTab = "signIn" | "signUp";
 
@@ -31,100 +32,109 @@ export default function AuthPage() {
           password: form.get("password") as string,
           flow: "signUp",
         });
+        toastSuccess(COPY.toast.authSignUpSuccess);
       } else {
         await signIn("password", {
           email: form.get("email") as string,
           password: form.get("password") as string,
           flow: "signIn",
         });
+        toastSuccess(COPY.toast.authSignInSuccess);
       }
       router.push("/");
     } catch (err) {
-      setError(err instanceof Error ? err.message : COPY.auth.errorFallback);
+      const message = err instanceof Error ? err.message : COPY.auth.errorFallback;
+      setError(message);
+      toastError(message);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex flex-1 items-center justify-center px-4 py-16">
-      <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-sm">
-        <div className="mb-8 flex justify-center">
-          <Logo height={40} />
-        </div>
-        <div className="mb-8 flex border-b border-gray-100">
-          {(["signIn", "signUp"] as const).map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setTab(t)}
-              className={`flex-1 pb-3 text-sm font-semibold transition-colors ${tab === t ? "border-b-2" : "opacity-50"}`}
-              style={{ color: C.teal, borderColor: tab === t ? C.teal : "transparent" }}
+    <div className="flex min-h-[calc(100vh)] flex-1 flex-col-reverse lg:flex-row">
+      <div className="flex w-full flex-col justify-center px-6 py-12 sm:px-10 lg:w-1/2 lg:px-16 xl:px-24">
+        <div className="mx-auto w-full max-w-md">
+          <div className="mb-10">
+            <Logo height={56} />
+          </div>
+          <div className="mb-8 flex gap-8 border-b border-gray-100">
+            {(["signIn", "signUp"] as const).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setTab(t)}
+                className={`pb-4 text-base font-semibold transition-colors ${tab === t ? "border-b-2" : "opacity-45 hover:opacity-70"}`}
+                style={{ color: C.teal, borderColor: tab === t ? C.teal : "transparent" }}
+              >
+                {t === "signIn" ? COPY.auth.signInTab : COPY.auth.signUpTab}
+              </button>
+            ))}
+          </div>
+          <AnimatePresence mode="wait">
+            <motion.form
+              key={tab}
+              onSubmit={handleSubmit}
+              initial={fadeIn.initial}
+              animate={fadeIn.animate}
+              exit={fadeIn.initial}
+              transition={fadeIn.transition}
+              className="space-y-5"
             >
-              {t === "signIn" ? COPY.auth.signInTab : COPY.auth.signUpTab}
-            </button>
-          ))}
-        </div>
-        <AnimatePresence mode="wait">
-          <motion.form
-            key={tab}
-            onSubmit={handleSubmit}
-            initial={fadeIn.initial}
-            animate={fadeIn.animate}
-            exit={fadeIn.initial}
-            transition={fadeIn.transition}
-            className="space-y-4"
-          >
-            {tab === "signUp" && (
+              {tab === "signUp" && (
+                <div>
+                  <label className="mb-2 block text-base font-medium" style={{ color: C.slate }}>
+                    {COPY.auth.name}
+                  </label>
+                  <input name="name" required className="input-field" />
+                </div>
+              )}
               <div>
-                <label className="mb-1 block text-sm font-medium" style={{ color: C.slate }}>
-                  {COPY.auth.name}
+                <label className="mb-2 block text-base font-medium" style={{ color: C.slate }}>
+                  {COPY.auth.email}
                 </label>
-                <input
-                  name="name"
-                  required
-                  className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-[#1B5E78]"
-                />
+                <input name="email" type="email" required className="input-field" />
               </div>
-            )}
-            <div>
-              <label className="mb-1 block text-sm font-medium" style={{ color: C.slate }}>
-                {COPY.auth.email}
-              </label>
-              <input
-                name="email"
-                type="email"
-                required
-                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-[#1B5E78]"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium" style={{ color: C.slate }}>
-                {COPY.auth.password}
-              </label>
-              <input
-                name="password"
-                type="password"
-                required
-                minLength={8}
-                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-[#1B5E78]"
-              />
-            </div>
-            {error && (
-              <p className="text-sm" style={{ color: C.coral }}>
-                {error}
-              </p>
-            )}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-full py-3 text-sm font-semibold text-white transition-opacity disabled:opacity-60"
-              style={{ backgroundColor: C.teal }}
-            >
-              {COPY.auth.submit}
-            </button>
-          </motion.form>
-        </AnimatePresence>
+              <div>
+                <label className="mb-2 block text-base font-medium" style={{ color: C.slate }}>
+                  {COPY.auth.password}
+                </label>
+                <input name="password" type="password" required minLength={8} className="input-field" />
+              </div>
+              {error && (
+                <p className="text-base" style={{ color: C.coral }}>
+                  {error}
+                </p>
+              )}
+              <button
+                type="submit"
+                disabled={loading}
+                className="btn-primary w-full"
+                style={{ backgroundColor: C.teal }}
+              >
+                {COPY.auth.submit}
+              </button>
+            </motion.form>
+          </AnimatePresence>
+        </div>
+      </div>
+
+      <div
+        className="relative hidden min-h-[320px] flex-1 overflow-hidden lg:flex lg:w-1/2"
+        style={{
+          background:" #FFF8E7",
+        }}
+      >
+        <FloatingAssets />
+        <div className="relative z-10 flex flex-col items-center justify-center px-12 text-center">
+          {/* <Logo height={80} className="mb-10 drop-shadow-lg" /> */}
+          <h2 className={`max-w-md text-3xl font-bold tracking-tight text-${C.coralSoft} md:text-4xl`}>
+            {COPY.auth.brandingHeadline}
+          </h2>
+          <p className="mt-5 max-w-sm text-lg leading-relaxed text-white/85">
+            {COPY.auth.brandingSubtext}
+          </p>
+        </div>
       </div>
     </div>
   );
