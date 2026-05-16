@@ -21,9 +21,14 @@ import {
   cosineSimilarity,
 } from "./lib/similarity";
 
+<<<<<<< HEAD
 const VISION_DESCRIBE_PROMPT = `
 "Describe this item for a lost and found system. Include object type, color, brand if visible, material, condition, and unique features. Max 80 words.";
 `;
+=======
+const VISION_DESCRIBE_PROMPT =
+  "Describe this item for a lost and found system. Include object type, color, brand if visible, material, condition, and unique features. Max 80 words.";
+>>>>>>> 3511f94 (CHanges)
 
 const TEXT_SUMMARY_PROMPT =
   "Summarize this lost/found item in 2-3 sentences for matching. Focus on physical attributes, brand, color, and distinguishing features. Max 80 words.";
