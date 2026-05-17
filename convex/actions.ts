@@ -16,6 +16,7 @@ import {
   type ImageValidationResult,
 } from "./lib/imageValidation";
 import { computeMatchScore } from "./lib/similarity";
+import { normalizeUserId } from "./lib/userIds";
 
 const TEXT_SUMMARY_PROMPT =
   "Summarize this lost/found item in 2-3 sentences for matching. Focus on physical attributes, brand, color, and distinguishing features. Max 80 words.";
@@ -252,7 +253,7 @@ export const processPost = internalAction({
     });
 
     console.log(
-      `processPost: postId=${postId} type=${post.type} embeddingDims=${embedding.length} ready`,
+      `processPost: postId=${postId} type=${post.type} userId=${normalizeUserId(post.userId)} embeddingDims=${embedding.length} ready`,
     );
 
     const oppositeType = post.type === "lost" ? "found" : "lost";
@@ -380,13 +381,14 @@ export const findMatches = internalAction({
       if (p._id !== postId) candidateIds.add(p._id);
     }
 
+    const postUserId = normalizeUserId(post.userId);
     console.log(
-      `findMatches: postId=${postId} type=${post.type} opposite=${oppositeType} vectorHits=${vectorHitCount} candidates=${candidateIds.size}`,
+      `findMatches: postId=${postId} type=${post.type} postUserId=${postUserId} opposite=${oppositeType} vectorHits=${vectorHitCount} candidates=${candidateIds.size}`,
     );
 
     const scored: { candidateId: Id<"posts">; score: number }[] = [];
-    let skippedSameUser = 0;
     let skippedNotReady = 0;
+    const candidateUserIds: string[] = [];
 
     for (const candidateId of candidateIds) {
       const candidate = await ctx.runQuery(internal.posts.getPostInternal, {
@@ -401,14 +403,17 @@ export const findMatches = internalAction({
         continue;
       }
       if (candidate.type !== oppositeType) continue;
-      if (candidate.userId === post.userId) {
-        skippedSameUser++;
-        continue;
-      }
+
+      const candidateUserId = normalizeUserId(candidate.userId);
+      candidateUserIds.push(candidateUserId);
 
       const score = computeMatchScore(post, candidate);
       scored.push({ candidateId: candidate._id, score });
     }
+
+    console.log(
+      `findMatches: postId=${postId} scored=${scored.length} candidateUserIds=[${[...new Set(candidateUserIds)].slice(0, 12).join(",")}] postUserId=${postUserId}`,
+    );
 
     scored.sort((a, b) => b.score - a.score);
     const topMatches = scored.slice(0, TOP_N);
@@ -419,13 +424,16 @@ export const findMatches = internalAction({
         `findMatches: postId=${postId} bestScore=${best.score.toFixed(3)} bestCandidate=${best.candidateId} threshold=${MATCH_THRESHOLD}`,
       );
       for (const row of topMatches.slice(0, 3)) {
+        const cand = await ctx.runQuery(internal.posts.getPostInternal, {
+          postId: row.candidateId,
+        });
         console.log(
-          `findMatches:   candidate=${row.candidateId} score=${row.score.toFixed(3)}`,
+          `findMatches:   candidate=${row.candidateId} userId=${normalizeUserId(cand?.userId)} score=${row.score.toFixed(3)}`,
         );
       }
     } else {
       console.log(
-        `findMatches: postId=${postId} no_scored_candidates sameUser=${skippedSameUser} notReady=${skippedNotReady}`,
+        `findMatches: postId=${postId} no_scored_candidates notReady=${skippedNotReady}`,
       );
     }
 

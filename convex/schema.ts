@@ -36,13 +36,19 @@ export default defineSchema({
   matches: defineTable({
     postA: v.id("posts"),
     postB: v.id("posts"),
+    /** Owner of postA (canonical smaller post id) — for user-scoped match queries */
+    participantA: v.optional(v.string()),
+    /** Owner of postB (canonical larger post id) */
+    participantB: v.optional(v.string()),
     score: v.number(),
     seenByA: v.boolean(),
     seenByB: v.boolean(),
     createdAt: v.number(),
   })
     .index("by_postA", ["postA"])
-    .index("by_postB", ["postB"]),
+    .index("by_postB", ["postB"])
+    .index("by_participantA", ["participantA"])
+    .index("by_participantB", ["participantB"]),
   notifications: defineTable({
     userId: v.string(),
     matchId: v.id("matches"),
