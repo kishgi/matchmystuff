@@ -2,6 +2,8 @@
 
 **Powered by AI. Driven by kindness.**
 
+**Live app:** [https://matchmystuff.vercel.app](https://matchmystuff.vercel.app/)
+
 MatchMyStuff is a real-time, AI-powered lost-and-found platform. People report items they have lost or found; the system understands photos and descriptions, compares reports semantically, and connects matching pairs through secure in-app chat.
 
 Built for communities in Sri Lanka and beyond.
@@ -138,8 +140,8 @@ NEXT_PUBLIC_CONVEX_URL=https://your-deployment.convex.cloud
 |----------|---------|
 | `OPENAI_API_KEY` | Image validation, descriptions, embeddings |
 | `JWT_PRIVATE_KEY` / `JWKS` | Convex Auth (set via `npx @convex-dev/auth`) |
-| `SITE_URL` | Your app URL (e.g. `https://your-app.vercel.app`) |
-| `APP_BASE_URL` | Base URL for links in match emails |
+| `SITE_URL` | Your app URL (e.g. `https://matchmystuff.vercel.app`) |
+| `APP_BASE_URL` | Base URL for links in match emails (e.g. `https://matchmystuff.vercel.app`) |
 | `EMAIL_SENDER` / `EMAIL_PASS` | Optional Gmail for match notifications |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | Optional admin panel login |
 
@@ -171,6 +173,8 @@ npm start
 ---
 
 ## Deploy
+
+**Production:** [https://matchmystuff.vercel.app](https://matchmystuff.vercel.app/)
 
 1. **Convex** — `npx convex deploy` (set production env vars in the dashboard).
 2. **Vercel** — Import the repo; set `NEXT_PUBLIC_CONVEX_URL` to your production Convex URL; deploy.
