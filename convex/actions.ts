@@ -1,7 +1,6 @@
 "use node";
 
-// Convex env: OPENAI_API_KEY, GMAIL_USER (sender Gmail), GMAIL_PASS (Gmail App Password),
-// APP_BASE_URL (e.g. http://localhost:3000 — used for /matches links in emails)
+// Convex env: OPENAI_API_KEY, EMAIL_SENDER, EMAIL_PASS, APP_BASE_URL
 
 import OpenAI from "openai";
 import nodemailer from "nodemailer";
@@ -16,23 +15,38 @@ import {
   parseValidationResponse,
   type ImageValidationResult,
 } from "./lib/imageValidation";
-import {
-  calculateLocationScore,
-  cosineSimilarity,
-} from "./lib/similarity";
+import { computeMatchScore } from "./lib/similarity";
 
-const VISION_DESCRIBE_PROMPT = `
-"Describe this item for a lost and found system. Include object type, color, brand if visible, material, condition, and unique features. Max 80 words.";
-`;
+const VISION_DESCRIBE_PROMPT =
+  "Describe this item for a lost and found system. Include object type, color, brand if visible, material, condition, and unique features. Max 80 words. Write one clear paragraph.";
 
 const TEXT_SUMMARY_PROMPT =
   "Summarize this lost/found item in 2-3 sentences for matching. Focus on physical attributes, brand, color, and distinguishing features. Max 80 words.";
 
-const MATCH_THRESHOLD = 0.82;
-const TOP_N = 5;
+/** Minimum blended match score (0–1) to create a match */
+const MATCH_THRESHOLD = 0.72;
+const TOP_N = 8;
+const VECTOR_SEARCH_LIMIT = 40;
+const REMATCH_DELAY_MS = 2500;
 
 function getOpenAI() {
   return new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+}
+
+function buildEmbeddingInput(post: {
+  type: string;
+  title: string;
+  description: string;
+  aiDescription: string;
+  location: string;
+}): string {
+  return [
+    `Report type: ${post.type}`,
+    `Title: ${post.title}`,
+    `User description: ${post.description}`,
+    `Visual analysis: ${post.aiDescription}`,
+    `Location: ${post.location}`,
+  ].join("\n");
 }
 
 async function runImageValidation(
@@ -41,6 +55,7 @@ async function runImageValidation(
   const openai = getOpenAI();
   const response = await openai.chat.completions.create({
     model: "gpt-4o",
+    temperature: 0,
     response_format: { type: "json_object" },
     messages: [
       {
@@ -51,7 +66,7 @@ async function runImageValidation(
         ],
       },
     ],
-    max_tokens: 180,
+    max_tokens: 220,
   });
   const raw = response.choices[0]?.message?.content?.trim() ?? "";
   return parseValidationResponse(raw);
@@ -61,6 +76,7 @@ async function describeImage(imageUrl: string): Promise<string> {
   const openai = getOpenAI();
   const response = await openai.chat.completions.create({
     model: "gpt-4o",
+    temperature: 0.2,
     messages: [
       {
         role: "user",
@@ -83,6 +99,7 @@ async function summarizeText(
   const openai = getOpenAI();
   const response = await openai.chat.completions.create({
     model: "gpt-4o",
+    temperature: 0.2,
     messages: [
       {
         role: "user",
@@ -198,18 +215,22 @@ export const processPost = internalAction({
           id: postId,
           reason: "We could not identify an item in this image.",
         });
+      } else {
+        await ctx.runMutation(internal.posts.markRejected, {
+          id: postId,
+          reason: "Please add more detail in the title and description.",
+        });
       }
       return;
     }
 
-    const combinedText = [
-      post.title,
-      post.description,
+    const combinedText = buildEmbeddingInput({
+      type: post.type,
+      title: post.title,
+      description: post.description,
       aiDescription,
-      post.location,
-    ]
-      .filter(Boolean)
-      .join(" ");
+      location: post.location,
+    });
 
     let embedding: number[];
     try {
@@ -221,6 +242,10 @@ export const processPost = internalAction({
       embedding = result.data[0].embedding;
     } catch (error) {
       console.error("OpenAI Embeddings error:", error);
+      await ctx.runMutation(internal.posts.markRejected, {
+        id: postId,
+        reason: "Matching setup failed. Please try submitting again.",
+      });
       return;
     }
 
@@ -230,7 +255,34 @@ export const processPost = internalAction({
       aiDescription,
     });
 
-    await ctx.runAction(internal.actions.findMatches, { postId });
+    await ctx.scheduler.runAfter(0, internal.actions.findMatches, { postId });
+    await ctx.scheduler.runAfter(
+      REMATCH_DELAY_MS,
+      internal.actions.findMatches,
+      { postId },
+    );
+  },
+});
+
+/** Run matching for every ready post (e.g. after deploying matcher fixes). */
+export const backfillMatches = internalAction({
+  args: {},
+  handler: async (ctx) => {
+    const lost = await ctx.runQuery(internal.posts.listReadyPostsByType, {
+      type: "lost",
+      limit: 200,
+    });
+    const found = await ctx.runQuery(internal.posts.listReadyPostsByType, {
+      type: "found",
+      limit: 200,
+    });
+    let delay = 0;
+    for (const p of [...lost, ...found]) {
+      await ctx.scheduler.runAfter(delay, internal.actions.findMatches, {
+        postId: p._id,
+      });
+      delay += 500;
+    }
   },
 });
 
@@ -243,41 +295,68 @@ export const findMatches = internalAction({
     if (!post || post.embedding.length === 0) {
       return;
     }
+    if ((post.processingStatus ?? "ready") !== "ready") {
+      return;
+    }
 
     const oppositeType = post.type === "lost" ? "found" : "lost";
-    const vectorResults = await ctx.vectorSearch("posts", "by_embedding", {
-      vector: post.embedding,
-      limit: 20,
-      filter: (q) => q.eq("type", oppositeType),
-    });
 
-    const scored = [];
-    for (const result of vectorResults) {
-      if (result._id === postId) continue;
+    const candidateIds = new Set<string>();
+
+    try {
+      const vectorResults = await ctx.vectorSearch("posts", "by_embedding", {
+        vector: post.embedding,
+        limit: VECTOR_SEARCH_LIMIT,
+        filter: (q) => q.eq("type", oppositeType),
+      });
+      for (const hit of vectorResults) {
+        if (hit._id !== postId) candidateIds.add(hit._id);
+      }
+    } catch (error) {
+      console.error("vectorSearch error:", error);
+    }
+
+    const oppositePosts = await ctx.runQuery(internal.posts.listReadyPostsByType, {
+      type: oppositeType,
+      limit: 120,
+    });
+    for (const p of oppositePosts) {
+      if (p._id !== postId) candidateIds.add(p._id);
+    }
+
+    const scored: { candidateId: Id<"posts">; score: number }[] = [];
+
+    for (const candidateId of candidateIds) {
       const candidate = await ctx.runQuery(internal.posts.getPostInternal, {
-        postId: result._id,
+        postId: candidateId as Id<"posts">,
       });
       if (!candidate || candidate.embedding.length === 0) continue;
+      if ((candidate.processingStatus ?? "ready") !== "ready") continue;
+      if (candidate.type !== oppositeType) continue;
+      if (candidate.userId === post.userId) continue;
 
-      const similarity = cosineSimilarity(post.embedding, candidate.embedding);
-      const locationScore = calculateLocationScore(
-        post.location,
-        candidate.location,
-      );
-      const finalScore = similarity * 0.9 + locationScore * 0.1;
-      scored.push({ candidate, score: finalScore });
+      const score = computeMatchScore(post, candidate);
+      scored.push({ candidateId: candidate._id, score });
     }
 
     scored.sort((a, b) => b.score - a.score);
     const topMatches = scored.slice(0, TOP_N);
 
-    for (const { candidate, score } of topMatches) {
+    let created = 0;
+    for (const { candidateId, score } of topMatches) {
       if (score < MATCH_THRESHOLD) continue;
       await ctx.runMutation(internal.matches.createMatch, {
         postA: postId,
-        postB: candidate._id,
+        postB: candidateId,
         score,
       });
+      created++;
+    }
+
+    if (created > 0) {
+      console.log(
+        `findMatches: post ${postId} created ${created} match(es), best=${topMatches[0]?.score?.toFixed(3) ?? "n/a"}`,
+      );
     }
   },
 });

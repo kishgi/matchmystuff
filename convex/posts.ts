@@ -178,3 +178,24 @@ export const getPostInternal = internalQuery({
     return await ctx.db.get(postId);
   },
 });
+
+/** All ready opposite-type posts for real-time brute-force matching */
+export const listReadyPostsByType = internalQuery({
+  args: {
+    type: v.union(v.literal("lost"), v.literal("found")),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, { type, limit = 120 }) => {
+    const rows = await ctx.db
+      .query("posts")
+      .withIndex("by_type_created", (q) => q.eq("type", type))
+      .order("desc")
+      .take(limit);
+
+    return rows.filter(
+      (p) =>
+        (p.processingStatus ?? "ready") === "ready" &&
+        p.embedding.length > 0,
+    );
+  },
+});
