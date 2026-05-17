@@ -17,8 +17,28 @@ import {
 } from "./lib/imageValidation";
 import { computeMatchScore } from "./lib/similarity";
 
-const VISION_DESCRIBE_PROMPT =
-  "Describe this item for a lost and found system. Include object type, color, brand if visible, material, condition, and unique features. Max 80 words. Write one clear paragraph.";
+const VISION_DESCRIBE_PROMPT = `
+Analyze this lost-and-found item image carefully.
+
+Write one detailed natural paragraph describing ONLY visible facts.
+
+Include:
+- exact object type
+- category
+- primary and secondary colors
+- brand or logo text if visible
+- material or texture
+- shape and style
+- condition
+- patterns or graphics
+- straps, zippers, buttons, wheels, tags, stickers, keychains, damage, scratches, stains, or unique marks
+- estimated use category (school, travel, sports, electronics, fashion, etc.)
+
+Avoid guessing unknown details.
+Avoid mentioning backgrounds unless important.
+Do not use bullet points.
+Maximum 120 words.
+`;
 
 const TEXT_SUMMARY_PROMPT =
   "Summarize this lost/found item in 2-3 sentences for matching. Focus on physical attributes, brand, color, and distinguishing features. Max 80 words.";
@@ -39,14 +59,44 @@ function buildEmbeddingInput(post: {
   description: string;
   aiDescription: string;
   location: string;
-}): string {
-  return [
-    `Report type: ${post.type}`,
-    `Title: ${post.title}`,
-    `User description: ${post.description}`,
-    `Visual analysis: ${post.aiDescription}`,
-    `Location: ${post.location}`,
-  ].join("\n");
+}) {
+  return `
+You are processing a lost and found item for semantic similarity matching.
+
+Item report type:
+${post.type}
+
+Item title:
+${post.title}
+
+User provided description:
+${post.description}
+
+AI visual analysis:
+${post.aiDescription}
+
+Last known location:
+${post.location}
+
+Create a semantic understanding of this object including:
+- item category
+- object type
+- colors
+- brand names
+- visible logos
+- material
+- shape
+- size clues
+- condition
+- unique marks or damage
+- clothing or accessory type
+- electronics or device type
+- distinguishing visual features
+- travel or school related identifiers
+- possible synonyms people may search with
+
+Focus heavily on physical appearance and identifying characteristics for vector similarity matching in a lost-and-found system.
+`;
 }
 
 async function runImageValidation(
