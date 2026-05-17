@@ -169,7 +169,7 @@ export const COPY = {
     foundImageRequired: "Please upload a photo of the found item.",
     validatingImage: "Validating image…",
     imageInvalid: "Please upload a clear photo of the lost or found item.",
-    editorTitle: "Adjust your photo",
+    editorTitle: "Choose your photo",
     editorHint: "Drag to reposition, rotate, or zoom. The square frame is what we upload.",
     rotateLeft: "Rotate left",
     rotateRight: "Rotate right",

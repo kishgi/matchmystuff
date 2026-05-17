@@ -26,13 +26,7 @@ export function ImageEditor({
   const [state, setState] = useState<EditState>(defaultEditState);
   const [busy, setBusy] = useState(false);
 
-  // drag state
-  const dragRef = useRef<{
-    x: number;
-    y: number;
-    ox: number;
-    oy: number;
-  } | null>(null);
+
 
   // create preview
   useEffect(() => {
@@ -44,44 +38,8 @@ export function ImageEditor({
     };
   }, [file]);
 
-  // rotate
-  const rotate = (delta: number) => {
-    setState((s) => ({
-      ...s,
-      rotation: s.rotation + delta,
-    }));
-  };
 
-  // start dragging
-  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    e.currentTarget.setPointerCapture(e.pointerId);
 
-    dragRef.current = {
-      x: e.clientX,
-      y: e.clientY,
-      ox: state.offsetX,
-      oy: state.offsetY,
-    };
-  };
-
-  // dragging
-  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!dragRef.current) return;
-
-    const dx = e.clientX - dragRef.current.x;
-    const dy = e.clientY - dragRef.current.y;
-
-    setState((s) => ({
-      ...s,
-      offsetX: dragRef.current!.ox + dx,
-      offsetY: dragRef.current!.oy + dy,
-    }));
-  };
-
-  // stop dragging
-  const onPointerUp = () => {
-    dragRef.current = null;
-  };
 
   // confirm edit
   const handleConfirm = useCallback(async () => {
@@ -125,22 +83,12 @@ export function ImageEditor({
         {COPY.report.editorTitle}
       </p>
 
-      {/* HINT */}
-      <p
-        className="mb-4 text-xs leading-relaxed"
-        style={{ color: C.slate }}
-      >
-        {COPY.report.editorHint}
-      </p>
+      
 
       {/* IMAGE AREA */}
       <div
-        className="relative mx-auto mb-4 aspect-square w-full max-w-sm cursor-grab overflow-hidden rounded-xl border-2 bg-gray-100 active:cursor-grabbing"
-        style={{ borderColor: accentColor }}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerLeave={onPointerUp}
+        className="relative mx-auto mb-4 aspect-square w-full  cursor-grab overflow-hidden rounded-xl bg-gray-100 active:cursor-grabbing"
+        
       >
         {previewUrl && (
           <img
@@ -155,62 +103,10 @@ export function ImageEditor({
           />
         )}
 
-        {/* crop overlay */}
-        <div
-          className="pointer-events-none absolute inset-4 rounded-lg border-2 border-dashed border-white/80 shadow-[inset_0_0_0_9999px_rgba(0,0,0,0.25)]"
-          aria-hidden
-        />
+       
       </div>
 
-      {/* CONTROLS */}
-      <div className="mb-4 flex flex-wrap items-center justify-center gap-2">
-
-        <button
-          type="button"
-          onClick={() => rotate(-90)}
-          className="rounded-full border border-gray-200 px-4 py-2 text-sm font-medium hover:bg-gray-50"
-          style={{ color: C.slate }}
-        >
-          {COPY.report.rotateLeft}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => rotate(90)}
-          className="rounded-full border border-gray-200 px-4 py-2 text-sm font-medium hover:bg-gray-50"
-          style={{ color: C.slate }}
-        >
-          {COPY.report.rotateRight}
-        </button>
-
-        <button
-          type="button"
-          onClick={() =>
-            setState((s) => ({
-              ...s,
-              scale: Math.min(s.scale + 0.1, 3),
-            }))
-          }
-          className="rounded-full border border-gray-200 px-4 py-2 text-sm font-medium hover:bg-gray-50"
-          style={{ color: C.slate }}
-        >
-          {COPY.report.zoomIn}
-        </button>
-
-        <button
-          type="button"
-          onClick={() =>
-            setState((s) => ({
-              ...s,
-              scale: Math.max(s.scale - 0.1, 0.5),
-            }))
-          }
-          className="rounded-full border border-gray-200 px-4 py-2 text-sm font-medium hover:bg-gray-50"
-          style={{ color: C.slate }}
-        >
-          {COPY.report.zoomOut}
-        </button>
-      </div>
+      
 
       {/* ACTION BUTTONS */}
       <div className="flex gap-3">
