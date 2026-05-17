@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
   const searchQ = q.includes("Sri Lanka") ? q : `${q}, Sri Lanka`;
 
   try {
-    let coords =
+    const coords =
       (await geocodeWithPhoton(searchQ)) ??
       (await geocodeWithNominatim(searchQ));
 

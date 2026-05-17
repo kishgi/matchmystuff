@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { C } from "@/lib/colors";
-import { COPY } from "@/lib/copy";
 
 type ImageEditorProps = {
   file: File;
@@ -17,18 +16,14 @@ export function ImageEditor({
   onConfirm,
   onCancel,
 }: ImageEditorProps) {
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const previewUrl = useMemo(() => URL.createObjectURL(file), [file]);
 
-  // preview image
   useEffect(() => {
-    const url = URL.createObjectURL(file);
-    setPreviewUrl(url);
-
     return () => {
-      URL.revokeObjectURL(url);
+      URL.revokeObjectURL(previewUrl);
     };
-  }, [file]);
+  }, [previewUrl]);
 
   // use original image
   const handleUsePhoto = async () => {
