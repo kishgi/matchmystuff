@@ -145,7 +145,6 @@ export default function ReportPage({
     if (Object.keys(nextErrors).length > 0 || !user) return;
     setSubmitting(true);
     try {
-      let aiDescription: string | undefined;
       if (storageId) {
         setValidating(true);
         const imageUrl = await getFileUrl({ storageId });
@@ -162,7 +161,6 @@ export default function ReportPage({
           toastError(validation.reason ?? COPY.report.imageInvalid);
           return;
         }
-        aiDescription = validation.aiDescription;
       }
 
       const postId = await createPost({
@@ -171,7 +169,6 @@ export default function ReportPage({
         description,
         location,
         ...(storageId ? { imageStorageId: storageId } : {}),
-        ...(aiDescription ? { aiDescription } : {}),
         userName: user.name ?? user.email ?? "Anonymous",
       });
       toastSuccess(COPY.toast.reportSuccess);
