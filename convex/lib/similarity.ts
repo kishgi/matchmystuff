@@ -37,13 +37,23 @@ export function calculateLocationScore(
   return 0;
 }
 
-/** Token overlap on title + description + aiDescription */
+/** Token overlap on title + description + aiDescription + location */
 export function keywordOverlapScore(
-  postA: { title: string; description: string; aiDescription?: string },
-  postB: { title: string; description: string; aiDescription?: string },
+  postA: {
+    title: string;
+    description: string;
+    aiDescription?: string;
+    location: string;
+  },
+  postB: {
+    title: string;
+    description: string;
+    aiDescription?: string;
+    location: string;
+  },
 ): number {
   const text = (p: typeof postA) =>
-    `${p.title} ${p.description} ${p.aiDescription ?? ""}`.toLowerCase();
+    `${p.title} ${p.description} ${p.aiDescription ?? ""} ${p.location}`.toLowerCase();
   const tokens = (s: string) =>
     new Set(
       s
@@ -72,7 +82,10 @@ export function computeMatchScore(
   const keywordScore = keywordOverlapScore(post, candidate);
 
   const blended =
-    similarity * 0.78 + locationScore * 0.12 + keywordScore * 0.1;
+    similarity * 0.72 + locationScore * 0.13 + keywordScore * 0.15;
 
-  return Math.min(1, Math.max(similarity, blended));
+  // Strong keyword overlap on the same item type (e.g. charger + white)
+  const keywordBoost = keywordScore >= 0.35 ? 0.06 : 0;
+
+  return Math.min(1, Math.max(similarity, blended + keywordBoost));
 }
