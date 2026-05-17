@@ -22,10 +22,6 @@ export function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
-    setMenuOpen(false);
-  }, [pathname]);
-
-  useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
@@ -97,6 +93,7 @@ export function Navbar() {
                 <li key={link.href}>
                   <Link
                     href={link.href}
+                    onClick={() => setMenuOpen(false)}
                     className={`block text-base ${active ? "font-bold underline underline-offset-4" : "font-medium"}`}
                     style={{ color: link.color }}
                   >
@@ -109,6 +106,7 @@ export function Navbar() {
               <li>
                 <Link
                   href="/auth"
+                  onClick={() => setMenuOpen(false)}
                   className="btn-primary inline-flex !px-6 !py-2.5"
                   style={{ backgroundColor: C.teal }}
                 >

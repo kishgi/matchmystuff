@@ -4,15 +4,15 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
-  useState,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 import {
   clearAdminToken,
   getAdminToken,
   setAdminToken as persistAdminToken,
+  subscribeAdminSession,
 } from "@/lib/adminSession";
 
 type AdminSessionContextValue = {
@@ -26,23 +26,32 @@ const AdminSessionContext = createContext<AdminSessionContextValue | null>(
   null,
 );
 
-export function AdminSessionProvider({ children }: { children: ReactNode }) {
-  const [token, setTokenState] = useState<string | null>(null);
-  const [ready, setReady] = useState(false);
+function getTokenSnapshot() {
+  return getAdminToken();
+}
 
-  useEffect(() => {
-    setTokenState(getAdminToken());
-    setReady(true);
-  }, []);
+function getReadySnapshot() {
+  return true;
+}
+
+export function AdminSessionProvider({ children }: { children: ReactNode }) {
+  const token = useSyncExternalStore(
+    subscribeAdminSession,
+    getTokenSnapshot,
+    () => null,
+  );
+  const ready = useSyncExternalStore(
+    subscribeAdminSession,
+    getReadySnapshot,
+    () => false,
+  );
 
   const setToken = useCallback((value: string) => {
     persistAdminToken(value);
-    setTokenState(value);
   }, []);
 
   const clearToken = useCallback(() => {
     clearAdminToken();
-    setTokenState(null);
   }, []);
 
   const value = useMemo(

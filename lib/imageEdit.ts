@@ -12,6 +12,18 @@ export const defaultEditState: EditState = {
   offsetY: 0,
 };
 
+function rotatedDimensions(
+  width: number,
+  height: number,
+  rotationDeg: number,
+): { width: number; height: number } {
+  const rotation = ((rotationDeg % 360) + 360) % 360;
+  if (rotation === 90 || rotation === 270) {
+    return { width: height, height: width };
+  }
+  return { width, height };
+}
+
 function loadImage(file: File): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
@@ -28,11 +40,10 @@ function loadImage(file: File): Promise<HTMLImageElement> {
   });
 }
 
-
-
+/** Render crop/rotate/zoom edits to a square JPEG blob. */
 export async function renderEditedImage(
   file: File,
-  state: EditState,
+  state: EditState = defaultEditState,
   outputSize = 1200,
 ): Promise<Blob> {
   const img = await loadImage(file);

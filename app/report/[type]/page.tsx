@@ -5,7 +5,6 @@ import {
   FormEvent,
   use,
   useCallback,
-  useEffect,
   useRef,
   useState,
 } from "react";
@@ -44,10 +43,6 @@ export default function ReportPage({
   const createPost = useMutation(api.posts.createPost);
 
   const [mode, setMode] = useState<ReportMode>("photo");
-
-  useEffect(() => {
-    if (isFoundOnly) setMode("photo");
-  }, [isFoundOnly]);
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");

@@ -54,7 +54,7 @@ function MapFlyTo({
 }: {
   target: [number, number] | null;
   zoom: number;
-  token: number;
+  token: string | number;
 }) {
   const map = useMap();
 
@@ -100,9 +100,10 @@ export function MapView({
   const [placeQuery, setPlaceQuery] = useState("");
   const [placeSearching, setPlaceSearching] = useState(false);
   const [placeError, setPlaceError] = useState<string | null>(null);
-  const [flyTarget, setFlyTarget] = useState<[number, number] | null>(null);
-  const [flyZoom, setFlyZoom] = useState(7);
-  const [flyToken, setFlyToken] = useState(0);
+  const [placeSearchTarget, setPlaceSearchTarget] = useState<
+    [number, number] | null
+  >(null);
+  const [searchFlyToken, setSearchFlyToken] = useState(0);
 
   const postsWithLocation = useMemo(
     () => posts.filter((p) => p.location.trim().length > 0),
@@ -147,38 +148,46 @@ export function MapView({
     };
   }, [postsWithLocation]);
 
-  const userLocatedRef = useRef(false);
-  const placeSearchRef = useRef(false);
+  const geocodedCenter = useMemo((): [number, number] | null => {
+    if (geocoded.length === 0) return null;
+    const lat = geocoded.reduce((s, p) => s + p.lat, 0) / geocoded.length;
+    const lng = geocoded.reduce((s, p) => s + p.lng, 0) / geocoded.length;
+    return [lat, lng];
+  }, [geocoded]);
 
-  useEffect(() => {
-    if (placeSearchRef.current) return;
-    if (userCoords && !userLocatedRef.current) {
-      userLocatedRef.current = true;
-      setFlyTarget([userCoords.lat, userCoords.lng]);
-      setFlyZoom(9);
-      setFlyToken((t) => t + 1);
-      return;
+  const flyView = useMemo(() => {
+    if (placeSearchTarget) {
+      return {
+        target: placeSearchTarget,
+        zoom: 12,
+        token: `search-${searchFlyToken}`,
+      };
     }
-    if (!userCoords && geocoded.length > 0 && !flyTarget) {
-      const lat = geocoded.reduce((s, p) => s + p.lat, 0) / geocoded.length;
-      const lng = geocoded.reduce((s, p) => s + p.lng, 0) / geocoded.length;
-      setFlyTarget([lat, lng]);
-      setFlyZoom(8);
-      setFlyToken((t) => t + 1);
+    if (userCoords) {
+      return {
+        target: [userCoords.lat, userCoords.lng] as [number, number],
+        zoom: 9,
+        token: `user-${userCoords.lat}-${userCoords.lng}`,
+      };
     }
-  }, [userCoords, geocoded, flyTarget]);
+    if (geocodedCenter) {
+      return {
+        target: geocodedCenter,
+        zoom: 8,
+        token: `geo-${geocodedCenter[0]}-${geocodedCenter[1]}-${geocoded.length}`,
+      };
+    }
+    return { target: null, zoom: 7, token: "default" };
+  }, [placeSearchTarget, searchFlyToken, userCoords, geocodedCenter, geocoded.length]);
 
   const initialCenter = useMemo((): [number, number] => {
+    if (placeSearchTarget) return placeSearchTarget;
     if (userCoords) return [userCoords.lat, userCoords.lng];
-    if (geocoded.length > 0) {
-      const lat = geocoded.reduce((s, p) => s + p.lat, 0) / geocoded.length;
-      const lng = geocoded.reduce((s, p) => s + p.lng, 0) / geocoded.length;
-      return [lat, lng];
-    }
+    if (geocodedCenter) return geocodedCenter;
     return MAP_CENTER_DEFAULT;
-  }, [userCoords, geocoded]);
+  }, [placeSearchTarget, userCoords, geocodedCenter]);
 
-  const initialZoom = userCoords ? 9 : geocoded.length > 0 ? 8 : 7;
+  const initialZoom = flyView.zoom;
 
   const showLimited = (post: MapPost) =>
     post.type === "found" &&
@@ -197,10 +206,8 @@ export function MapView({
         setPlaceError(COPY.map.placeSearchFailed);
         return;
       }
-      placeSearchRef.current = true;
-      setFlyTarget([coords.lat, coords.lng]);
-      setFlyZoom(12);
-      setFlyToken((t) => t + 1);
+      setPlaceSearchTarget([coords.lat, coords.lng]);
+      setSearchFlyToken((t) => t + 1);
     } catch {
       setPlaceError(COPY.map.placeSearchFailed);
     } finally {
@@ -264,7 +271,11 @@ export function MapView({
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
           <MapResizeFix />
-          <MapFlyTo target={flyTarget} zoom={flyZoom} token={flyToken} />
+          <MapFlyTo
+            target={flyView.target}
+            zoom={flyView.zoom}
+            token={flyView.token}
+          />
           {geocoded.map((post) => (
             <Marker
               key={post._id}
