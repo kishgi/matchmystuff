@@ -157,7 +157,7 @@ export default function PostDetailPage({
       <p className="mt-2 text-sm sm:mt-3 sm:text-base" style={{ color: C.slate }}>
         {post.location} · {post.userName} · {timeAgo(post.createdAt)}
       </p>
-      <section className="card-surface mt-8 sm:mt-10">
+      <section className="card-surface mt-8 sm:mt-10 border-0 shadow-none">
         <h2 className="mb-3 text-base font-semibold md:text-lg" style={{ color: C.teal }}>
           Description
         </h2>
@@ -166,7 +166,7 @@ export default function PostDetailPage({
         </p>
       </section>
       {post.aiDescription && (
-        <section className="card-surface mt-4 sm:mt-6">
+        <section className="card-surface mt-4 sm:mt-6 border-0 shadow-none">
           <h2 className="mb-3 text-base font-semibold md:text-lg" style={{ color: C.sky }}>
             {COPY.post.aiLabel}
           </h2>
