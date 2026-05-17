@@ -59,44 +59,14 @@ function buildEmbeddingInput(post: {
   description: string;
   aiDescription: string;
   location: string;
-}) {
-  return `
-You are processing a lost and found item for semantic similarity matching.
-
-Item report type:
-${post.type}
-
-Item title:
-${post.title}
-
-User provided description:
-${post.description}
-
-AI visual analysis:
-${post.aiDescription}
-
-Last known location:
-${post.location}
-
-Create a semantic understanding of this object including:
-- item category
-- object type
-- colors
-- brand names
-- visible logos
-- material
-- shape
-- size clues
-- condition
-- unique marks or damage
-- clothing or accessory type
-- electronics or device type
-- distinguishing visual features
-- travel or school related identifiers
-- possible synonyms people may search with
-
-Focus heavily on physical appearance and identifying characteristics for vector similarity matching in a lost-and-found system.
-`;
+}): string {
+  return [
+    `Report type: ${post.type}`,
+    `Title: ${post.title}`,
+    `User description: ${post.description}`,
+    `Visual analysis: ${post.aiDescription}`,
+    `Location: ${post.location}`,
+  ].join("\n");
 }
 
 async function runImageValidation(
