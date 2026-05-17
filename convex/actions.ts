@@ -8,37 +8,14 @@ import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 import { action, internalAction } from "./_generated/server";
+import { buildDescribeUserMessage } from "./lib/imageDescribe";
 import {
-  buildAiDescriptionFromValidation,
   IMAGE_VALIDATION_ERROR,
   IMAGE_VALIDATION_PROMPT,
   parseValidationResponse,
   type ImageValidationResult,
 } from "./lib/imageValidation";
 import { computeMatchScore } from "./lib/similarity";
-
-const VISION_DESCRIBE_PROMPT = `
-Analyze this lost-and-found item image carefully.
-
-Write one detailed natural paragraph describing ONLY visible facts.
-
-Include:
-- exact object type
-- category
-- primary and secondary colors
-- brand or logo text if visible
-- material or texture
-- shape and style
-- condition
-- patterns or graphics
-- straps, zippers, buttons, wheels, tags, stickers, keychains, damage, scratches, stains, or unique marks
-- estimated use category (school, travel, sports, electronics, fashion, etc.)
-
-Avoid guessing unknown details.
-Avoid mentioning backgrounds unless important.
-Do not use bullet points.
-Maximum 120 words.
-`;
 
 const TEXT_SUMMARY_PROMPT =
   "Summarize this lost/found item in 2-3 sentences for matching. Focus on physical attributes, brand, color, and distinguishing features. Max 80 words.";
@@ -82,7 +59,10 @@ async function runImageValidation(
         role: "user",
         content: [
           { type: "text", text: IMAGE_VALIDATION_PROMPT },
-          { type: "image_url", image_url: { url: imageUrl } },
+          {
+            type: "image_url",
+            image_url: { url: imageUrl, detail: "high" },
+          },
         ],
       },
     ],
@@ -92,21 +72,16 @@ async function runImageValidation(
   return parseValidationResponse(raw);
 }
 
-async function describeImage(imageUrl: string): Promise<string> {
+async function describeImage(
+  imageUrl: string,
+  context?: { title: string; description: string },
+): Promise<string> {
   const openai = getOpenAI();
   const response = await openai.chat.completions.create({
     model: "gpt-4o",
-    temperature: 0.2,
-    messages: [
-      {
-        role: "user",
-        content: [
-          { type: "text", text: VISION_DESCRIBE_PROMPT },
-          { type: "image_url", image_url: { url: imageUrl } },
-        ],
-      },
-    ],
-    max_tokens: 200,
+    temperature: 0,
+    messages: [buildDescribeUserMessage(imageUrl, context)],
+    max_tokens: 320,
   });
   return response.choices[0]?.message?.content?.trim() ?? "";
 }
@@ -136,7 +111,6 @@ export const validateImage = action({
   handler: async (_ctx, { imageUrl }) => {
     try {
       const result = await runImageValidation(imageUrl);
-      const aiDescription = buildAiDescriptionFromValidation(result);
       return {
         valid: result.valid,
         reason: result.valid
@@ -146,7 +120,6 @@ export const validateImage = action({
         category: result.category,
         color: result.color,
         description: result.description,
-        aiDescription: aiDescription || undefined,
       };
     } catch (error) {
       console.error("validateImage error:", error);
@@ -177,9 +150,9 @@ export const processPost = internalAction({
     });
 
     const hasImage = Boolean(post.imageUrl?.trim());
-    let aiDescription = post.aiDescription?.trim() ?? "";
+    let aiDescription = "";
 
-    if (hasImage && !aiDescription) {
+    if (hasImage) {
       try {
         const validation = await runImageValidation(post.imageUrl);
         if (!validation.valid) {
@@ -191,7 +164,6 @@ export const processPost = internalAction({
           });
           return;
         }
-        aiDescription = buildAiDescriptionFromValidation(validation);
       } catch (error) {
         console.error("Image validation error:", error);
         await ctx.runMutation(internal.posts.markRejected, {
@@ -200,32 +172,32 @@ export const processPost = internalAction({
         });
         return;
       }
-    }
 
-    if (!aiDescription) {
       try {
-        if (hasImage) {
-          aiDescription = await describeImage(post.imageUrl);
-        } else {
-          aiDescription = await summarizeText(
-            post.title,
-            post.description,
-            post.location,
-          );
-        }
+        aiDescription = await describeImage(post.imageUrl, {
+          title: post.title,
+          description: post.description,
+        });
       } catch (error) {
-        console.error("OpenAI description error:", error);
-        if (!hasImage) {
-          aiDescription = [post.title, post.description, post.location]
-            .filter(Boolean)
-            .join(". ");
-        } else {
-          await ctx.runMutation(internal.posts.markRejected, {
-            id: postId,
-            reason: "We could not analyze your image. Please try another photo.",
-          });
-          return;
-        }
+        console.error("OpenAI image description error:", error);
+        await ctx.runMutation(internal.posts.markRejected, {
+          id: postId,
+          reason: "We could not analyze your image. Please try another photo.",
+        });
+        return;
+      }
+    } else {
+      try {
+        aiDescription = await summarizeText(
+          post.title,
+          post.description,
+          post.location,
+        );
+      } catch (error) {
+        console.error("OpenAI text description error:", error);
+        aiDescription = [post.title, post.description, post.location]
+          .filter(Boolean)
+          .join(". ");
       }
     }
 
