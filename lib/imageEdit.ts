@@ -28,17 +28,7 @@ function loadImage(file: File): Promise<HTMLImageElement> {
   });
 }
 
-function rotatedDimensions(
-  width: number,
-  height: number,
-  rotation: number,
-): { width: number; height: number } {
-  const quarter = ((rotation % 360) + 360) % 360;
-  if (quarter === 90 || quarter === 270) {
-    return { width: height, height: width };
-  }
-  return { width, height };
-}
+
 
 export async function renderEditedImage(
   file: File,
