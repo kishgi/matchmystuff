@@ -21,7 +21,9 @@ const TEXT_SUMMARY_PROMPT =
   "Summarize this lost/found item in 2-3 sentences for matching. Focus on physical attributes, brand, color, and distinguishing features. Max 80 words.";
 
 /** Minimum blended match score (0–1) to create a match */
-const MATCH_THRESHOLD = 0.72;
+const MATCH_THRESHOLD = 0.65;
+/** Re-run matching on recent opposite-type posts when a new post becomes ready */
+const OPPOSITE_REMATCH_LIMIT = 20;
 const TOP_N = 8;
 const VECTOR_SEARCH_LIMIT = 40;
 const REMATCH_DELAY_MS = 2500;
@@ -30,15 +32,14 @@ function getOpenAI() {
   return new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 }
 
+/** Item-focused text for embeddings — do NOT include lost/found (opposite types must align). */
 function buildEmbeddingInput(post: {
-  type: string;
   title: string;
   description: string;
   aiDescription: string;
   location: string;
 }): string {
   return [
-    `Report type: ${post.type}`,
     `Title: ${post.title}`,
     `User description: ${post.description}`,
     `Visual analysis: ${post.aiDescription}`,
@@ -217,12 +218,15 @@ export const processPost = internalAction({
     }
 
     const combinedText = buildEmbeddingInput({
-      type: post.type,
       title: post.title,
       description: post.description,
       aiDescription,
       location: post.location,
     });
+
+    console.log(
+      `processPost: postId=${postId} type=${post.type} embeddingInputLen=${combinedText.length}`,
+    );
 
     let embedding: number[];
     try {
@@ -247,16 +251,35 @@ export const processPost = internalAction({
       aiDescription,
     });
 
+    console.log(
+      `processPost: postId=${postId} type=${post.type} embeddingDims=${embedding.length} ready`,
+    );
+
+    const oppositeType = post.type === "lost" ? "found" : "lost";
+    const recentOpposite = await ctx.runQuery(
+      internal.posts.listReadyPostsByType,
+      { type: oppositeType, limit: OPPOSITE_REMATCH_LIMIT },
+    );
+
     await ctx.scheduler.runAfter(0, internal.actions.findMatches, { postId });
     await ctx.scheduler.runAfter(
       REMATCH_DELAY_MS,
       internal.actions.findMatches,
       { postId },
     );
+    for (let i = 0; i < recentOpposite.length; i++) {
+      const otherId = recentOpposite[i]._id;
+      if (otherId === postId) continue;
+      await ctx.scheduler.runAfter(
+        REMATCH_DELAY_MS + 500 + i * 200,
+        internal.actions.findMatches,
+        { postId: otherId },
+      );
+    }
   },
 });
 
-/** Run matching for every ready post (e.g. after deploying matcher fixes). */
+/** Re-embed ready posts (fixes legacy embeddings that included lost/found) then rematch. */
 export const backfillMatches = internalAction({
   args: {},
   handler: async (ctx) => {
@@ -268,8 +291,37 @@ export const backfillMatches = internalAction({
       type: "found",
       limit: 200,
     });
+    const openai = getOpenAI();
     let delay = 0;
+
     for (const p of [...lost, ...found]) {
+      const aiDescription =
+        p.aiDescription?.trim() ||
+        [p.title, p.description, p.location].filter(Boolean).join(". ");
+      if (!aiDescription) continue;
+
+      try {
+        const combinedText = buildEmbeddingInput({
+          title: p.title,
+          description: p.description,
+          aiDescription,
+          location: p.location,
+        });
+        const result = await openai.embeddings.create({
+          model: "text-embedding-3-small",
+          input: combinedText,
+        });
+        await ctx.runMutation(internal.posts.updateEmbedding, {
+          id: p._id,
+          embedding: result.data[0].embedding,
+          aiDescription,
+        });
+        console.log(`backfillMatches: re-embedded postId=${p._id} type=${p.type}`);
+      } catch (error) {
+        console.error(`backfillMatches: embed failed postId=${p._id}`, error);
+        continue;
+      }
+
       await ctx.scheduler.runAfter(delay, internal.actions.findMatches, {
         postId: p._id,
       });
@@ -284,16 +336,27 @@ export const findMatches = internalAction({
     const post = await ctx.runQuery(internal.posts.getPostInternal, {
       postId,
     });
-    if (!post || post.embedding.length === 0) {
+    if (!post) {
+      console.log(`findMatches: skip postId=${postId} reason=not_found`);
+      return;
+    }
+    if (post.embedding.length === 0) {
+      console.log(
+        `findMatches: skip postId=${postId} type=${post.type} reason=no_embedding`,
+      );
       return;
     }
     if ((post.processingStatus ?? "ready") !== "ready") {
+      console.log(
+        `findMatches: skip postId=${postId} type=${post.type} reason=status_${post.processingStatus ?? "unknown"}`,
+      );
       return;
     }
 
     const oppositeType = post.type === "lost" ? "found" : "lost";
 
     const candidateIds = new Set<string>();
+    let vectorHitCount = 0;
 
     try {
       const vectorResults = await ctx.vectorSearch("posts", "by_embedding", {
@@ -301,6 +364,7 @@ export const findMatches = internalAction({
         limit: VECTOR_SEARCH_LIMIT,
         filter: (q) => q.eq("type", oppositeType),
       });
+      vectorHitCount = vectorResults.length;
       for (const hit of vectorResults) {
         if (hit._id !== postId) candidateIds.add(hit._id);
       }
@@ -316,16 +380,31 @@ export const findMatches = internalAction({
       if (p._id !== postId) candidateIds.add(p._id);
     }
 
+    console.log(
+      `findMatches: postId=${postId} type=${post.type} opposite=${oppositeType} vectorHits=${vectorHitCount} candidates=${candidateIds.size}`,
+    );
+
     const scored: { candidateId: Id<"posts">; score: number }[] = [];
+    let skippedSameUser = 0;
+    let skippedNotReady = 0;
 
     for (const candidateId of candidateIds) {
       const candidate = await ctx.runQuery(internal.posts.getPostInternal, {
         postId: candidateId as Id<"posts">,
       });
-      if (!candidate || candidate.embedding.length === 0) continue;
-      if ((candidate.processingStatus ?? "ready") !== "ready") continue;
+      if (!candidate || candidate.embedding.length === 0) {
+        skippedNotReady++;
+        continue;
+      }
+      if ((candidate.processingStatus ?? "ready") !== "ready") {
+        skippedNotReady++;
+        continue;
+      }
       if (candidate.type !== oppositeType) continue;
-      if (candidate.userId === post.userId) continue;
+      if (candidate.userId === post.userId) {
+        skippedSameUser++;
+        continue;
+      }
 
       const score = computeMatchScore(post, candidate);
       scored.push({ candidateId: candidate._id, score });
@@ -333,21 +412,48 @@ export const findMatches = internalAction({
 
     scored.sort((a, b) => b.score - a.score);
     const topMatches = scored.slice(0, TOP_N);
+    const best = topMatches[0];
+
+    if (best) {
+      console.log(
+        `findMatches: postId=${postId} bestScore=${best.score.toFixed(3)} bestCandidate=${best.candidateId} threshold=${MATCH_THRESHOLD}`,
+      );
+      for (const row of topMatches.slice(0, 3)) {
+        console.log(
+          `findMatches:   candidate=${row.candidateId} score=${row.score.toFixed(3)}`,
+        );
+      }
+    } else {
+      console.log(
+        `findMatches: postId=${postId} no_scored_candidates sameUser=${skippedSameUser} notReady=${skippedNotReady}`,
+      );
+    }
 
     let created = 0;
+    let belowThreshold = 0;
     for (const { candidateId, score } of topMatches) {
-      if (score < MATCH_THRESHOLD) continue;
+      if (score < MATCH_THRESHOLD) {
+        belowThreshold++;
+        continue;
+      }
       await ctx.runMutation(internal.matches.createMatch, {
         postA: postId,
         postB: candidateId,
         score,
       });
       created++;
+      console.log(
+        `findMatches: created match postId=${postId} candidate=${candidateId} score=${score.toFixed(3)}`,
+      );
     }
 
-    if (created > 0) {
+    if (created === 0 && best && best.score >= MATCH_THRESHOLD - 0.05) {
       console.log(
-        `findMatches: post ${postId} created ${created} match(es), best=${topMatches[0]?.score?.toFixed(3) ?? "n/a"}`,
+        `findMatches: near_miss postId=${postId} best=${best.score.toFixed(3)} threshold=${MATCH_THRESHOLD}`,
+      );
+    } else if (created === 0 && best) {
+      console.log(
+        `findMatches: below_threshold postId=${postId} best=${best.score.toFixed(3)} skipped=${belowThreshold}`,
       );
     }
   },
