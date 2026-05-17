@@ -7,6 +7,7 @@ import {
   query,
 } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { normalizeUserId } from "./lib/userIds";
 
 function isPublicPost(post: {
   processingStatus?: "pending" | "processing" | "ready" | "rejected";
@@ -46,7 +47,7 @@ export const createPost = mutation({
       location: args.location,
       imageUrl,
       aiDescription: args.aiDescription,
-      userId: userId as string,
+      userId: normalizeUserId(userId as string),
       userName: args.userName,
       matched: false,
       embedding: [],
